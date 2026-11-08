@@ -65,13 +65,13 @@ export function exportTeamsToCSV(teams: Team[]): string {
           `"${team.status}"`,
           `"${team.captain.fullName}"`,
           `"${team.captain.phone}"`,
-          `"${team.captain.email}"`,
+          `"${team.captain.email || ''}"`,
           `"${player.fullName}"`,
           `"${player.grade}º Año"`,
-          `"${player.studentIdOrCurp}"`,
-          `"${player.position}"`,
-          `"${player.jerseyNumber}"`,
-          `"${player.document.status}"`,
+          `"${player.studentIdOrCurp || 'N/A'}"`,
+          `"${player.position || 'Jugador'}"`,
+          `"${player.jerseyNumber || ''}"`,
+          `"${player.document?.status || 'pending'}"`,
           `"${player.isActive ? 'Activo' : 'Baja'}"`,
         ].join(',')
       );

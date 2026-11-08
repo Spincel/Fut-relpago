@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Users, PlusCircle, Calendar, ShieldCheck, Bell } from 'lucide-react';
+import { Trophy, Users, Calendar, ShieldCheck } from 'lucide-react';
 
 interface MobileBottomNavProps {
   currentTab: 'bases' | 'registro' | 'equipos' | 'fixture' | 'admin';
@@ -7,7 +7,7 @@ interface MobileBottomNavProps {
   teamsCount: number;
   newRegistrationsCount: number;
   isAdmin: boolean;
-  setIsAdmin: (val: boolean) => void;
+  onOpenAdminLogin: () => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -16,16 +16,15 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   teamsCount,
   newRegistrationsCount,
   isAdmin,
-  setIsAdmin,
 }) => {
   return (
     <nav className="no-print lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 px-2 py-1 shadow-2xl safe-area-bottom">
-      <div className="grid grid-cols-5 items-center justify-around max-w-md mx-auto h-16">
+      <div className={`grid ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} items-center justify-around max-w-md mx-auto h-16`}>
         
         {/* Tab 1: Bases / Inicio */}
         <button
           onClick={() => setCurrentTab('bases')}
-          className={`flex flex-col items-center justify-center min-h-[48px] py-1 transition-all ${
+          className={`flex flex-col items-center justify-center min-h-[48px] py-1 transition-all cursor-pointer ${
             currentTab === 'bases' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -36,7 +35,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         {/* Tab 2: Equipos */}
         <button
           onClick={() => setCurrentTab('equipos')}
-          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 transition-all ${
+          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 transition-all cursor-pointer ${
             currentTab === 'equipos' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -50,7 +49,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         {/* Tab 3: Central Highlight: Inscribir */}
         <button
           onClick={() => setCurrentTab('registro')}
-          className="flex flex-col items-center justify-center -mt-5 group focus:outline-none"
+          className="flex flex-col items-center justify-center -mt-5 group focus:outline-none cursor-pointer"
         >
           <div className={`w-13 h-13 rounded-2xl flex items-center justify-center shadow-lg transition-transform active:scale-95 border-2 ${
             currentTab === 'registro'
@@ -69,7 +68,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         {/* Tab 4: Rol / Fixture */}
         <button
           onClick={() => setCurrentTab('fixture')}
-          className={`flex flex-col items-center justify-center min-h-[48px] py-1 transition-all ${
+          className={`flex flex-col items-center justify-center min-h-[48px] py-1 transition-all cursor-pointer ${
             currentTab === 'fixture' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -77,22 +76,21 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <span className="text-[10px] tracking-tight leading-tight">Rol Jueves</span>
         </button>
 
-        {/* Tab 5: Admin Panel (Axel) */}
-        <button
-          onClick={() => {
-            setIsAdmin(true);
-            setCurrentTab('admin');
-          }}
-          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 transition-all ${
-            currentTab === 'admin' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <ShieldCheck className="w-5 h-5 mb-0.5" />
-          <span className="text-[10px] tracking-tight leading-tight">Admin Axel</span>
-          {newRegistrationsCount > 0 && (
-            <span className="absolute top-1 right-2.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-slate-950 animate-pulse" />
-          )}
-        </button>
+        {/* Tab 5: Admin Panel (ONLY visible when Axel is logged in!) */}
+        {isAdmin && (
+          <button
+            onClick={() => setCurrentTab('admin')}
+            className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 transition-all cursor-pointer ${
+              currentTab === 'admin' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShieldCheck className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] tracking-tight leading-tight">Panel Axel</span>
+            {newRegistrationsCount > 0 && (
+              <span className="absolute top-1 right-2.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-slate-950 animate-pulse" />
+            )}
+          </button>
+        )}
 
       </div>
     </nav>

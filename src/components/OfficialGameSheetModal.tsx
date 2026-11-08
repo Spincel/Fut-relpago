@@ -146,13 +146,13 @@ export const OfficialGameSheetModal: React.FC<OfficialGameSheetModalProps> = ({
                         {player.grade}º Año
                       </td>
                       <td className="p-2 border-r border-slate-300 text-slate-600">
-                        {player.position}
+                        {player.position || 'Jugador'}
                       </td>
                       <td className="p-2 border-r border-slate-300 font-mono text-[10px] text-slate-600">
-                        {player.studentIdOrCurp}
+                        {player.studentIdOrCurp || 'Vigente'}
                       </td>
                       <td className="p-2 border-r border-slate-300 text-center">
-                        {player.document.status === 'approved' ? (
+                        {player.document?.status === 'approved' ? (
                           <span className="text-[10px] text-emerald-700 font-bold">✓ VÁLIDO</span>
                         ) : (
                           <span className="text-[10px] text-amber-700 font-bold">PENDIENTE</span>

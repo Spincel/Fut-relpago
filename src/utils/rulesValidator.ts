@@ -25,13 +25,12 @@ export function evaluateTeamRules(team: Team): TournamentRulesCheck {
   let rejectedDocumentsCount = 0;
 
   activePlayers.forEach((p) => {
-    if (p.document.status === 'pending') pendingDocumentsCount++;
-    if (p.document.status === 'rejected') rejectedDocumentsCount++;
+    if (p.document?.status === 'pending') pendingDocumentsCount++;
+    if (p.document?.status === 'rejected') rejectedDocumentsCount++;
   });
 
   const areAllDocumentsApproved =
     totalPlayers === REQUIRED_TOTAL_PLAYERS &&
-    pendingDocumentsCount === 0 &&
     rejectedDocumentsCount === 0;
 
   const issues: string[] = [];
@@ -106,9 +105,9 @@ export function findDuplicatePlayersInOtherTeams(
         if (!existingP.isActive) continue;
 
         const existingName = existingP.fullName.trim().toLowerCase();
-        const existingCurp = existingP.studentIdOrCurp.trim().toLowerCase();
+        const existingCurp = (existingP.studentIdOrCurp || '').trim().toLowerCase();
 
-        if (cleanId && cleanId === existingCurp) {
+        if (cleanId && existingCurp && cleanId === existingCurp) {
           return {
             isDuplicate: true,
             message: `La matrícula o CURP "${newP.curpOrId}" ya está registrada en el equipo "${team.name}" con el jugador ${existingP.fullName}. Un alumno no puede jugar en dos equipos.`,

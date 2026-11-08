@@ -161,15 +161,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={onGoToTeams}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-colors"
+                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                Ver los {registeredTeamsCount} Equipos Inscritos
-              </button>
-              <button
-                onClick={onGoToAdmin}
-                className="px-4 py-2.5 text-slate-400 hover:text-amber-400 text-xs font-semibold transition-colors flex items-center gap-1.5"
-              >
-                <span>Acceso Administrador (Axel Javier)</span>
+                <span>Ver los {registeredTeamsCount} Equipos Inscritos</span>
               </button>
             </div>
 

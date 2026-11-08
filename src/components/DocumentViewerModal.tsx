@@ -109,21 +109,33 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </button>
             </div>
 
-            {/* Document Image */}
-            <div className="overflow-auto max-w-full max-h-[460px] flex items-center justify-center">
-              <img
-                src={player.document.fileUrl}
-                alt={`Credencial de ${player.fullName}`}
-                style={{
-                  transform: `scale(${zoom}) rotate(${rotation}deg)`,
-                  transition: 'transform 0.2s ease-out',
-                }}
-                className="max-w-full h-auto object-contain rounded-lg shadow-md"
-              />
+            {/* Document Image or Fallback */}
+            <div className="overflow-auto max-w-full min-h-[220px] max-h-[460px] flex items-center justify-center bg-slate-950/60 rounded-xl p-4">
+              {player.document?.fileUrl ? (
+                <img
+                  src={player.document.fileUrl}
+                  alt={`Credencial de ${player.fullName}`}
+                  style={{
+                    transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                    transition: 'transform 0.2s ease-out',
+                  }}
+                  className="max-w-full h-auto object-contain rounded-lg shadow-md"
+                />
+              ) : (
+                <div className="text-center p-6 space-y-2">
+                  <div className="w-12 h-12 rounded-xl bg-slate-800 text-amber-400 flex items-center justify-center mx-auto text-xl font-bold">
+                    🎓
+                  </div>
+                  <h4 className="text-sm font-bold text-white">Validación Presencial de Credencial</h4>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                    Este jugador fue registrado en línea. Debe presentar su credencial escolar física de <strong>{player.grade}º Año</strong> en la mesa de control con Axel Javier.
+                  </p>
+                </div>
+              )}
             </div>
             
             <div className="mt-3 text-xs text-slate-400">
-              Archivo: <span className="font-mono text-slate-300">{player.document.name}</span>
+              Archivo: <span className="font-mono text-slate-300">{player.document?.name || 'Credencial Escolar Física'}</span>
             </div>
           </div>
 
@@ -135,19 +147,19 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 <div className="mt-2 space-y-1.5 text-xs">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Posición:</span>
-                    <span className="text-white font-medium">{player.position}</span>
+                    <span className="text-white font-medium">{player.position || 'Jugador de Campo'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Dorsal:</span>
-                    <span className="text-white font-mono font-bold">#{player.jerseyNumber}</span>
+                    <span className="text-white font-mono font-bold">#{player.jerseyNumber || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Grado requerido:</span>
+                    <span className="text-slate-400">Grado registrado:</span>
                     <span className="text-amber-400 font-bold">{player.grade}º Año</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Matrícula/CURP:</span>
-                    <span className="text-slate-200 font-mono">{player.studentIdOrCurp}</span>
+                    <span className="text-slate-200 font-mono">{player.studentIdOrCurp || 'Vigente'}</span>
                   </div>
                 </div>
               </div>
@@ -156,19 +168,19 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
                 <span className="text-xs text-slate-400 block font-medium">Estatus del Documento</span>
                 <div className="mt-2 flex items-center gap-2">
-                  {player.document.status === 'approved' && (
+                  {player.document?.status === 'approved' && (
                     <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
                       <CheckCircle className="w-4 h-4 text-emerald-400" />
                       Documento Aprobado y Validado
                     </span>
                   )}
-                  {player.document.status === 'pending' && (
+                  {(!player.document || player.document?.status === 'pending') && (
                     <span className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4 text-amber-400" />
                       Pendiente de Revisión
                     </span>
                   )}
-                  {player.document.status === 'rejected' && (
+                  {player.document?.status === 'rejected' && (
                     <span className="text-xs font-semibold text-rose-400 flex items-center gap-1.5">
                       <X className="w-4 h-4 text-rose-400" />
                       Documento Rechazado
@@ -176,14 +188,14 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   )}
                 </div>
 
-                {player.document.rejectionReason && (
+                {player.document?.rejectionReason && (
                   <div className="mt-2.5 p-2.5 rounded bg-rose-950/40 border border-rose-900/60 text-xs text-rose-300">
                     <strong>Motivo de rechazo:</strong>
                     <p className="mt-0.5">{player.document.rejectionReason}</p>
                   </div>
                 )}
 
-                {player.document.reviewedBy && (
+                {player.document?.reviewedBy && (
                   <div className="mt-2 text-xs text-slate-400">
                     Revisado por: <span className="text-slate-300">{player.document.reviewedBy}</span>
                   </div>

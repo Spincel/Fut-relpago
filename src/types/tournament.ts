@@ -5,13 +5,13 @@ export type PlayerPosition = 'Portero' | 'Defensa' | 'Medio' | 'Delantero';
 export type DocumentStatus = 'pending' | 'approved' | 'rejected';
 
 export interface PlayerDocument {
-  id: string;
-  name: string;
-  type: 'credencial' | 'constancia' | 'boleta' | 'responsiva';
-  fileUrl: string;
+  id?: string;
+  name?: string;
+  type?: 'credencial' | 'constancia' | 'boleta' | 'responsiva';
+  fileUrl?: string;
   status: DocumentStatus;
   rejectionReason?: string;
-  uploadedAt: string;
+  uploadedAt?: string;
   reviewedAt?: string;
   reviewedBy?: string;
 }
@@ -20,10 +20,10 @@ export interface Player {
   id: string;
   fullName: string;
   grade: GradeYear;
-  studentIdOrCurp: string;
-  position: PlayerPosition;
-  jerseyNumber: number;
-  document: PlayerDocument;
+  studentIdOrCurp?: string;
+  position?: PlayerPosition;
+  jerseyNumber?: number;
+  document?: PlayerDocument;
   isActive: boolean;
   deactivationReason?: string;
 }
@@ -31,7 +31,7 @@ export interface Player {
 export interface CaptainContact {
   fullName: string;
   phone: string;
-  email: string;
+  email?: string;
   groupOrClass?: string;
 }
 

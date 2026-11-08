@@ -9,17 +9,18 @@ import { FixtureGenerator } from './components/FixtureGenerator';
 import { DocumentViewerModal } from './components/DocumentViewerModal';
 import { OfficialGameSheetModal } from './components/OfficialGameSheetModal';
 import { GitSyncModal } from './components/GitSyncModal';
+import { AdminLoginModal } from './components/AdminLoginModal';
 import { Team, Player } from './types/tournament';
 import { loadTeamsFromStorage, saveTeamsToStorage } from './utils/storage';
 import { generateCaptainToAxelLink } from './utils/whatsappHelper';
-import { CheckCircle2, Trophy, Printer, ArrowRight, MessageCircle, ExternalLink } from 'lucide-react';
+import { Trophy, Printer, ArrowRight, MessageCircle, ExternalLink, Lock, ShieldCheck } from 'lucide-react';
 
 export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentTab, setCurrentTab] = useState<'bases' | 'registro' | 'equipos' | 'fixture' | 'admin'>('bases');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [newRegistrationsCount, setNewRegistrationsCount] = useState(1); // 1 demo notification for Axel
+  const [newRegistrationsCount, setNewRegistrationsCount] = useState(1);
 
   // Modals state
   const [documentModal, setDocumentModal] = useState<{
@@ -41,6 +42,7 @@ export default function App() {
   });
 
   const [gitModalOpen, setGitModalOpen] = useState(false);
+  const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
   const [newlyRegisteredTeam, setNewlyRegisteredTeam] = useState<Team | null>(null);
 
   // Load teams from persistent local storage on mount
@@ -88,7 +90,7 @@ export default function App() {
             : p
         );
 
-        const allApproved = updatedPlayers.every((p) => p.document.status === 'approved');
+        const allApproved = updatedPlayers.every((p) => p.document?.status === 'approved');
 
         return {
           ...t,
@@ -145,12 +147,15 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       
-      {/* Top Header App Bar */}
+      {/* Top Header App Bar (Clean for regular users, shows status for Axel if logged in) */}
       <Header
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         isAdmin={isAdmin}
-        setIsAdmin={setIsAdmin}
+        onLogoutAdmin={() => {
+          setIsAdmin(false);
+          setCurrentTab('bases');
+        }}
         onOpenGitModal={() => setGitModalOpen(true)}
         totalTeamsCount={teams.length}
       />
@@ -163,8 +168,11 @@ export default function App() {
               onGoToRegister={() => setCurrentTab('registro')}
               onGoToTeams={() => setCurrentTab('equipos')}
               onGoToAdmin={() => {
-                setIsAdmin(true);
-                setCurrentTab('admin');
+                if (isAdmin) {
+                  setCurrentTab('admin');
+                } else {
+                  setAdminLoginModalOpen(true);
+                }
               }}
               registeredTeamsCount={teams.length}
             />
@@ -203,32 +211,50 @@ export default function App() {
         )}
 
         {currentTab === 'admin' && (
-          <AdminPanel
-            teams={teams}
-            onUpdateTeams={handleUpdateTeams}
-            onOpenDocumentModal={handleOpenDocModal}
-            onOpenGameSheetModal={(team) => setGameSheetModal({ isOpen: true, team })}
-            onOpenNewRegistration={() => setCurrentTab('registro')}
-            newRegistrationsCount={newRegistrationsCount}
-            onClearNewNotification={() => setNewRegistrationsCount(0)}
-          />
+          isAdmin ? (
+            <AdminPanel
+              teams={teams}
+              onUpdateTeams={handleUpdateTeams}
+              onOpenDocumentModal={handleOpenDocModal}
+              onOpenGameSheetModal={(team) => setGameSheetModal({ isOpen: true, team })}
+              onOpenNewRegistration={() => setCurrentTab('registro')}
+              newRegistrationsCount={newRegistrationsCount}
+              onClearNewNotification={() => setNewRegistrationsCount(0)}
+            />
+          ) : (
+            <div className="max-w-md mx-auto my-16 p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Panel de Organizadores</h3>
+              <p className="text-xs text-slate-300">
+                Esta sección está protegida para Axel Javier González Salas. Inicia sesión para validar altas, bajas y fichas.
+              </p>
+              <button
+                onClick={() => setAdminLoginModalOpen(true)}
+                className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow cursor-pointer"
+              >
+                Ingresar Clave de Administrador
+              </button>
+            </div>
+          )
         )}
       </main>
 
-      {/* Fixed Bottom Mobile Navigation (Appweb Style) */}
+      {/* Fixed Bottom Mobile Navigation (Normal users see 4 tabs; Admin tab only shows if logged in) */}
       <MobileBottomNav
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         teamsCount={teams.length}
         newRegistrationsCount={newRegistrationsCount}
         isAdmin={isAdmin}
-        setIsAdmin={setIsAdmin}
+        onOpenAdminLogin={() => setAdminLoginModalOpen(true)}
       />
 
-      {/* Footer (Desktop view) */}
-      <footer className="no-print hidden lg:block border-t border-slate-800 bg-slate-950 py-8 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+      {/* Footer with Discrete Admin Login Link */}
+      <footer className="no-print border-t border-slate-800 bg-slate-950 py-6 text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <div className="flex items-center gap-2 justify-center sm:justify-start">
             <Trophy className="w-4 h-4 text-amber-500" />
             <span className="font-semibold text-slate-200">
               Torneo Relámpago de Fútbol 2026
@@ -237,21 +263,30 @@ export default function App() {
             <span>Jueves 12 de Noviembre</span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span>Organizador Oficial:</span>
-            <strong className="text-amber-400">Axel Javier González Salas</strong>
+          <div className="flex items-center gap-4 justify-center sm:justify-end text-[11px]">
+            <span>Organizador: <strong className="text-amber-400">Axel Javier González Salas</strong></span>
             <span>·</span>
-            <button
-              onClick={() => setGitModalOpen(true)}
-              className="text-slate-400 hover:text-white underline font-mono text-[11px]"
-            >
-              GitHub: Spincel/torneo-fut
-            </button>
+            {/* Discrete organizer login link for Axel */}
+            {!isAdmin ? (
+              <button
+                onClick={() => setAdminLoginModalOpen(true)}
+                className="text-slate-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer transition-colors"
+                title="Acceso exclusivo para el organizador"
+              >
+                <Lock className="w-3 h-3 text-slate-500" />
+                <span>Acceso Organizador</span>
+              </button>
+            ) : (
+              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" />
+                <span>Sesión de Axel Activa</span>
+              </span>
+            )}
           </div>
         </div>
       </footer>
 
-      {/* Registration Success Dialog with Immediate Ficha Download & WhatsApp sharing */}
+      {/* Registration Success Dialog */}
       {newlyRegisteredTeam && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg bg-slate-900 border-t-2 sm:border-2 border-amber-500/50 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -284,11 +319,15 @@ export default function App() {
                 <span className="font-bold text-white">{newlyRegisteredTeam.name}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-slate-400">Color Uniforme:</span>
+                <span className="text-amber-400 font-bold">{newlyRegisteredTeam.uniformColor}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-slate-400">Capitán:</span>
                 <span className="text-slate-200">{newlyRegisteredTeam.captain.fullName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">WhatsApp:</span>
+                <span className="text-slate-400">WhatsApp Registrado:</span>
                 <span className="text-emerald-400 font-mono font-bold">{newlyRegisteredTeam.captain.phone}</span>
               </div>
               <div className="flex justify-between">
@@ -370,6 +409,16 @@ export default function App() {
       <GitSyncModal
         isOpen={gitModalOpen}
         onClose={() => setGitModalOpen(false)}
+      />
+
+      {/* Modal: Admin Protected Login for Axel */}
+      <AdminLoginModal
+        isOpen={adminLoginModalOpen}
+        onClose={() => setAdminLoginModalOpen(false)}
+        onLoginSuccess={() => {
+          setIsAdmin(true);
+          setCurrentTab('admin');
+        }}
       />
 
     </div>

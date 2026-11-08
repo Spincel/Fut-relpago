@@ -116,7 +116,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const updatedPlayers = team.players.map((p) => ({
       ...p,
       document: {
-        ...p.document,
+        ...(p.document || {}),
         status: 'approved' as const,
         rejectionReason: undefined,
         reviewedAt: new Date().toISOString(),
@@ -200,7 +200,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setSubGrade(player.grade);
     setSubName('');
     setSubCurp('');
-    setSubPosition(player.position);
+    setSubPosition(player.position || 'Delantero');
     setSubJersey(String(player.jerseyNumber || 10));
     setSubError(null);
   };
@@ -809,28 +809,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <button
                               onClick={() => onOpenDocumentModal(player, team)}
                               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors border ${
-                                player.document.status === 'approved'
+                                player.document?.status === 'approved'
                                   ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800 hover:bg-emerald-900/60'
-                                  : player.document.status === 'pending'
-                                  ? 'bg-amber-950/60 text-amber-300 border-amber-800 hover:bg-amber-900/60'
-                                  : 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/60'
+                                  : player.document?.status === 'rejected'
+                                  ? 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/60'
+                                  : 'bg-amber-950/60 text-amber-300 border-amber-800 hover:bg-amber-900/60'
                               }`}
                               title="Inspeccionar credencial con zoom"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               <span>
-                                {player.document.status === 'approved'
+                                {player.document?.status === 'approved'
                                   ? 'Doc. Aprobado'
-                                  : player.document.status === 'pending'
-                                  ? 'Doc. Pendiente'
-                                  : 'Doc. Rechazado'}
+                                  : player.document?.status === 'rejected'
+                                  ? 'Doc. Rechazado'
+                                  : 'Doc. Pendiente'}
                               </span>
                             </button>
 
-                            {player.document.status !== 'approved' && (
+                            {player.document?.status !== 'approved' && (
                               <button
                                 onClick={() => handleQuickApproveDoc(team.id, player.id)}
-                                className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded-lg transition-colors"
+                                className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                                 title="Aprobar inmediatamente documento"
                               >
                                 <CheckCircle className="w-4 h-4" />
