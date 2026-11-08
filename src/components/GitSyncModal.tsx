@@ -39,13 +39,13 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
     output?: string;
   } | null>(null);
 
-  const REPO_URL = 'https://github.com/Spincel/torneo-fut';
+  const [repoUrl, setRepoUrl] = useState('https://github.com/Spincel/Fut-relpago');
 
-  const COMMAND_BLOCK = `git remote add origin https://github.com/Spincel/torneo-fut.git
+  const COMMAND_BLOCK = `git remote set-url origin ${repoUrl}.git || git remote add origin ${repoUrl}.git
 git branch -M main
 git add .
-git commit -m "feat: Sistema de registro y administración Torneo Relámpago con bases 2-2-2"
-git push -u origin main`;
+git commit -m "fix(vercel): Resolve peer dependency conflict with .npmrc legacy-peer-deps and remove redundant esbuild"
+git push -u origin main --force`;
 
   useEffect(() => {
     fetchGitStatus();
@@ -83,14 +83,14 @@ git push -u origin main`;
       const res = await fetch('/api/git-push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: githubToken.trim() }),
+        body: JSON.stringify({ token: githubToken.trim(), repoUrl }),
       });
 
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
         setPushResult({
           success: false,
-          message: 'En entornos de despliegue estático (como Vercel frontend), debes ejecutar los comandos de Git desde tu terminal o usar un GitHub Action para subir cambios.',
+          message: 'En entornos de despliegue estático, ejecuta los comandos de terminal abajo para hacer push directamente.',
           output: 'Usa los comandos que se muestran abajo para hacer push directamente desde tu equipo.',
         });
         return;
@@ -140,12 +140,12 @@ git push -u origin main`;
                 Sincronización con GitHub
               </h3>
               <a
-                href={REPO_URL}
+                href={repoUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs text-amber-400 hover:underline flex items-center gap-1 font-mono"
               >
-                <span>{REPO_URL}</span>
+                <span>{repoUrl}</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
@@ -157,6 +157,35 @@ git push -u origin main`;
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Repository Switcher */}
+        <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+          <span className="text-[11px] font-bold text-slate-300 block">Repositorio Destino:</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRepoUrl('https://github.com/Spincel/Fut-relpago')}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold transition-all border ${
+                repoUrl.includes('Fut-relpago')
+                  ? 'bg-amber-500/15 border-amber-500 text-amber-300'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+              }`}
+            >
+              ⭐ Spincel/Fut-relpago (Vercel)
+            </button>
+            <button
+              type="button"
+              onClick={() => setRepoUrl('https://github.com/Spincel/torneo-fut')}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold transition-all border ${
+                repoUrl.includes('torneo-fut')
+                  ? 'bg-amber-500/15 border-amber-500 text-amber-300'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+              }`}
+            >
+              Spincel/torneo-fut
+            </button>
+          </div>
         </div>
 
         {/* Current Git Status */}
@@ -296,12 +325,12 @@ git push -u origin main`;
         {/* Footer info */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
           <a
-            href={REPO_URL}
+            href={repoUrl}
             target="_blank"
             rel="noreferrer"
-            className="font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+            className="font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 font-mono text-xs"
           >
-            <span>Ir al repositorio Spincel/torneo-fut</span>
+            <span>Ir a {repoUrl.replace('https://github.com/', '')}</span>
             <ArrowUpRight className="w-4 h-4" />
           </a>
 

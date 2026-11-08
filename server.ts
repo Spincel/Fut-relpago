@@ -32,27 +32,29 @@ async function startServer() {
     }
   });
 
-  // API Route: Git push to https://github.com/Spincel/torneo-fut
+  // API Route: Git push to GitHub repository
   app.post('/api/git-push', async (req, res) => {
     try {
-      const { token } = req.body;
+      const { token, repoUrl } = req.body;
+      const targetRepo = repoUrl?.trim() || 'https://github.com/Spincel/Fut-relpago.git';
+      const cleanUrl = targetRepo.replace(/^https?:\/\//, '').replace(/\.git$/, '');
       const targetRemote = token
-        ? `https://${token.trim()}@github.com/Spincel/torneo-fut.git`
-        : 'https://github.com/Spincel/torneo-fut.git';
+        ? `https://${token.trim()}@${cleanUrl}.git`
+        : `https://${cleanUrl}.git`;
 
       // Ensure all changes are staged and committed
       await execPromise('git add .');
       try {
-        await execPromise('git commit -m "feat: Sistema de registro y administración Torneo Relámpago con bases 2-2-2"');
+        await execPromise('git commit -m "fix(vercel): Resolve peer dependency conflict with .npmrc legacy-peer-deps and remove redundant esbuild"');
       } catch (_e) {
         // Nothing new to commit, which is completely fine
       }
 
       // Execute push to main
-      const { stdout, stderr } = await execPromise(`git push -u "${targetRemote}" main`);
+      const { stdout, stderr } = await execPromise(`git push -u "${targetRemote}" main --force`);
       res.json({
         success: true,
-        message: '¡Código fuente subido exitosamente a https://github.com/Spincel/torneo-fut en la rama main!',
+        message: `¡Código fuente subido exitosamente a https://${cleanUrl} en la rama main!`,
         output: (stdout + '\n' + stderr).trim(),
       });
     } catch (err: any) {
