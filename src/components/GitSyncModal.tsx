@@ -86,6 +86,16 @@ git push -u origin main`;
         body: JSON.stringify({ token: githubToken.trim() }),
       });
 
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        setPushResult({
+          success: false,
+          message: 'En entornos de despliegue estático (como Vercel frontend), debes ejecutar los comandos de Git desde tu terminal o usar un GitHub Action para subir cambios.',
+          output: 'Usa los comandos que se muestran abajo para hacer push directamente desde tu equipo.',
+        });
+        return;
+      }
+
       const data = await res.json();
 
       if (data.success) {
@@ -105,7 +115,7 @@ git push -u origin main`;
     } catch (err: any) {
       setPushResult({
         success: false,
-        message: 'No se pudo comunicar con el servidor para ejecutar el push.',
+        message: 'No se pudo comunicar con el endpoint local de Git. Puedes usar los comandos de terminal abajo.',
         output: err.message,
       });
     } finally {
