@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { ShieldCheck, AlertCircle, Upload, CheckCircle2, User, Trophy, FileText } from 'lucide-react';
+import { ShieldCheck, AlertCircle, Upload, CheckCircle2, User, Trophy, FileText, Check, AlertTriangle } from 'lucide-react';
 import { Team, Player, GradeYear, PlayerPosition } from '../types/tournament';
 import { createMockCredential } from '../data/initialTeams';
+import { isTeamNameTaken, findDuplicatePlayersInOtherTeams } from '../utils/rulesValidator';
 
 interface RegistrationFormProps {
+  existingTeams: Team[];
   onRegisterSuccess: (newTeam: Team) => void;
   onCancel: () => void;
   registeredBy?: 'public_portal' | 'admin_desk';
@@ -20,6 +22,7 @@ interface PlayerFormData {
 }
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
+  existingTeams,
   onRegisterSuccess,
   onCancel,
   registeredBy = 'public_portal',
@@ -92,6 +95,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Real-time team name duplicate check
+  const teamNameIsDuplicate = isTeamNameTaken(teamName, existingTeams);
+
   const handlePlayerChange = (index: number, field: keyof PlayerFormData, value: any) => {
     setPlayers((prev) => {
       const copy = [...prev];
@@ -150,31 +156,66 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
     const errors: string[] = [];
 
-    if (!teamName.trim()) errors.push('El nombre del equipo es obligatorio.');
-    if (!uniformColor.trim()) errors.push('Especifica el color o distintivo del uniforme.');
-    if (!captainName.trim()) errors.push('El nombre del capitán es obligatorio.');
-    if (!captainPhone.trim()) errors.push('El teléfono de contacto es obligatorio.');
+    // 1. Team Name & Duplicate validation
+    if (!teamName.trim()) {
+      errors.push('El nombre del equipo es obligatorio.');
+    } else if (teamNameIsDuplicate) {
+      errors.push(`El nombre "${teamName}" ya está registrado en el torneo. Por favor elige otro nombre para tu equipo.`);
+    }
 
-    if (grade3Count !== 2) errors.push(`Debe haber exactamente 2 jugadores de 3er año (tienes ${grade3Count}).`);
-    if (grade2Count !== 2) errors.push(`Debe haber exactamente 2 jugadores de 2do año (tienes ${grade2Count}).`);
-    if (grade1Count !== 2) errors.push(`Debe haber exactamente 2 jugadores de 1er año (tienes ${grade1Count}).`);
+    if (!uniformColor.trim()) errors.push('Especifica el color de uniforme o distintivo de tu equipo.');
+    if (!captainName.trim()) errors.push('El nombre del capitán o representante es obligatorio.');
+    if (!captainPhone.trim()) errors.push('El teléfono de contacto (WhatsApp) es obligatorio para que Axel te confirme la validación.');
+
+    // 2. Exact 2-2-2 composition
+    if (grade3Count !== 2) errors.push(`Debes registrar exactamente 2 jugadores de 3er año (tienes ${grade3Count}).`);
+    if (grade2Count !== 2) errors.push(`Debes registrar exactamente 2 jugadores de 2do año (tienes ${grade2Count}).`);
+    if (grade1Count !== 2) errors.push(`Debes registrar exactamente 2 jugadores de 1er año (tienes ${grade1Count}).`);
+
+    // 3. Duplicate check inside the team itself
+    const internalCurps = new Set<string>();
+    const internalNames = new Set<string>();
 
     players.forEach((p, idx) => {
-      if (!p.fullName.trim()) {
+      const name = p.fullName.trim();
+      const curp = p.studentIdOrCurp.trim();
+
+      if (!name) {
         errors.push(`Falta el nombre completo del Jugador #${idx + 1} (${p.grade}º Año).`);
+      } else {
+        if (internalNames.has(name.toLowerCase())) {
+          errors.push(`El jugador "${name}" está repetido en la misma plantilla.`);
+        }
+        internalNames.add(name.toLowerCase());
       }
-      if (!p.studentIdOrCurp.trim()) {
+
+      if (!curp) {
         errors.push(`Falta la matrícula o CURP del Jugador #${idx + 1}.`);
+      } else {
+        if (internalCurps.has(curp.toLowerCase())) {
+          errors.push(`La matrícula "${curp}" está repetida dos veces en este equipo.`);
+        }
+        internalCurps.add(curp.toLowerCase());
       }
+
       if (!p.documentUrl) {
-        // Automatically create a mock credential if none was uploaded so user is never blocked
-        p.documentUrl = createMockCredential(p.fullName || `Jugador ${idx + 1}`, p.grade, p.studentIdOrCurp || `MAT-${p.grade}A-00${idx + 1}`);
+        // Auto-assign sample credential so young users are never blocked
+        p.documentUrl = createMockCredential(name || `Jugador ${idx + 1}`, p.grade, curp || `MAT-${p.grade}A-00${idx + 1}`);
       }
     });
 
+    // 4. Duplicate check against OTHER registered teams
+    const dupCheck = findDuplicatePlayersInOtherTeams(
+      players.map((p) => ({ name: p.fullName, curpOrId: p.studentIdOrCurp })),
+      existingTeams
+    );
+    if (dupCheck.isDuplicate && dupCheck.message) {
+      errors.push(dupCheck.message);
+    }
+
     if (errors.length > 0) {
       setFormErrors(errors);
-      window.scrollTo({ top: 300, behavior: 'smooth' });
+      window.scrollTo({ top: 200, behavior: 'smooth' });
       return;
     }
 
@@ -222,61 +263,61 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       registeredBy,
       notes: registeredBy === 'admin_desk' 
         ? 'Inscripción directa en mesa con Axel Javier González Salas.' 
-        : 'Inscripción vía portal web. Pendiente cotejo con Axel Javier González Salas.',
+        : 'Inscripción vía portal web. Notificación enviada a Axel Javier González Salas.',
     };
 
     setTimeout(() => {
       onRegisterSuccess(newTeam);
       setIsSubmitting(false);
-    }, 400);
+    }, 350);
   };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* Title & Instructions */}
-      <div className="mb-8 text-center max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full mb-3">
-          <Trophy className="w-3.5 h-3.5" />
-          <span>Inscripción Oficial · Jueves 12 de Noviembre</span>
+      {/* Title */}
+      <div className="mb-6 text-center max-w-2xl mx-auto">
+        <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3.5 py-1.5 rounded-full mb-2.5">
+          <Trophy className="w-4 h-4" />
+          <span>Inscripción Oficial · Torneo Relámpago (Jueves 12 de Noviembre)</span>
         </div>
-        <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-white">
-          Registro Oficial de Equipo
+        <h2 className="font-display text-3xl sm:text-4xl font-black text-white">
+          Registrar a tu Equipo
         </h2>
         <p className="mt-2 text-sm text-slate-300">
-          Completa los datos de tu equipo y de los 6 jugadores obligatorios con la distribución exacta
-          de <strong>2 de 3er año, 2 de 2do año y 2 de 1er año</strong>.
+          Llena este formulario con tus 6 jugadores. Recuerda la regla obligatoria:
+          <strong className="text-amber-400"> 2 de 3er año, 2 de 2do año y 2 de 1er año</strong>.
         </p>
       </div>
 
       {/* Rules Live Tracker Bar */}
-      <div className="mb-8 p-4 rounded-xl bg-slate-900 border border-slate-800 grid grid-cols-2 sm:grid-cols-5 gap-3 text-center text-xs">
-        <div className="p-2 rounded bg-slate-950 border border-slate-800">
-          <span className="text-slate-400 block">Total Jugadores</span>
-          <span className="text-lg font-bold font-mono text-white tabular-nums">
+      <div className="mb-8 p-4 rounded-2xl bg-slate-900 border border-slate-800 grid grid-cols-2 sm:grid-cols-5 gap-3 text-center text-xs">
+        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span className="text-slate-400 block font-medium">Jugadores Llenos</span>
+          <span className="text-xl font-black font-mono text-white tabular-nums">
             {filledNamesCount} / 6
           </span>
         </div>
-        <div className="p-2 rounded bg-slate-950 border border-slate-800">
-          <span className="text-slate-400 block">3er Año (Exige 2)</span>
-          <span className={`text-lg font-bold font-mono tabular-nums ${grade3Count === 2 ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span className="text-slate-400 block font-medium">3er Año (Exige 2)</span>
+          <span className={`text-xl font-black font-mono tabular-nums ${grade3Count === 2 ? 'text-emerald-400' : 'text-amber-400'}`}>
             {grade3Count} / 2
           </span>
         </div>
-        <div className="p-2 rounded bg-slate-950 border border-slate-800">
-          <span className="text-slate-400 block">2do Año (Exige 2)</span>
-          <span className={`text-lg font-bold font-mono tabular-nums ${grade2Count === 2 ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span className="text-slate-400 block font-medium">2do Año (Exige 2)</span>
+          <span className={`text-xl font-black font-mono tabular-nums ${grade2Count === 2 ? 'text-emerald-400' : 'text-amber-400'}`}>
             {grade2Count} / 2
           </span>
         </div>
-        <div className="p-2 rounded bg-slate-950 border border-slate-800">
-          <span className="text-slate-400 block">1er Año (Exige 2)</span>
-          <span className={`text-lg font-bold font-mono tabular-nums ${grade1Count === 2 ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span className="text-slate-400 block font-medium">1er Año (Exige 2)</span>
+          <span className={`text-xl font-black font-mono tabular-nums ${grade1Count === 2 ? 'text-emerald-400' : 'text-amber-400'}`}>
             {grade1Count} / 2
           </span>
         </div>
-        <div className="p-2 rounded bg-slate-950 border border-slate-800 col-span-2 sm:col-span-1">
-          <span className="text-slate-400 block">Documentos</span>
-          <span className={`text-lg font-bold font-mono tabular-nums ${docsAttachedCount === 6 ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 col-span-2 sm:col-span-1">
+          <span className="text-slate-400 block font-medium">Credenciales</span>
+          <span className={`text-xl font-black font-mono tabular-nums ${docsAttachedCount === 6 ? 'text-emerald-400' : 'text-amber-400'}`}>
             {docsAttachedCount} / 6
           </span>
         </div>
@@ -284,13 +325,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
       {/* Error alert if any */}
       {formErrors.length > 0 && (
-        <div className="mb-6 p-4 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-200 text-xs space-y-1">
+        <div className="mb-6 p-4 rounded-2xl bg-rose-950/70 border-2 border-rose-800 text-rose-200 text-xs space-y-1.5 animate-in fade-in">
           <div className="flex items-center gap-2 font-bold text-sm text-rose-400 mb-1">
-            <AlertCircle className="w-4 h-4" />
-            <span>Por favor atiende los siguientes puntos de las bases:</span>
+            <AlertCircle className="w-5 h-5 text-rose-400" />
+            <span>Atención: corrige lo siguiente para continuar:</span>
           </div>
           {formErrors.map((err, i) => (
-            <p key={i}>· {err}</p>
+            <p key={i} className="flex items-start gap-1.5">
+              <span className="text-rose-400 font-bold">·</span>
+              <span>{err}</span>
+            </p>
           ))}
         </div>
       )}
@@ -298,52 +342,74 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       <form onSubmit={handleSubmit} className="space-y-8">
         
         {/* Step 1: Team & Captain Info */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-          <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-            <ShieldCheck className="w-5 h-5 text-amber-400" />
-            <span>1. Información del Equipo y Representante</span>
-          </h3>
+        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-lg">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-amber-400" />
+              <span>1. Datos del Equipo y del Capitán</span>
+            </h3>
+            <span className="text-xs text-slate-400">Paso 1 de 2</span>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Nombre Oficial del Equipo *
+              <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                <span>Nombre Oficial del Equipo *</span>
+                {teamName && !teamNameIsDuplicate && (
+                  <span className="text-emerald-400 text-[11px] font-bold flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" /> Nombre disponible
+                  </span>
+                )}
+                {teamNameIsDuplicate && (
+                  <span className="text-rose-400 text-[11px] font-bold flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Nombre repetido
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 required
                 value={teamName}
                 onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Ej. Guerreros de Acero FC"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+                placeholder="Ej. Halcones Dorados FC"
+                className={`w-full px-3.5 py-2.5 text-sm bg-slate-950 border rounded-xl text-white focus:outline-none ${
+                  teamNameIsDuplicate
+                    ? 'border-rose-500 focus:border-rose-400'
+                    : 'border-slate-700 focus:border-amber-400'
+                }`}
               />
+              {teamNameIsDuplicate && (
+                <span className="text-[11px] text-rose-400 mt-1 block">
+                  ⚠️ Este nombre ya está registrado. Por favor escribe un nombre diferente.
+                </span>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Color de Camiseta / Distintivo *
+                Color de Uniforme o Playera *
               </label>
               <input
                 type="text"
                 required
                 value={uniformColor}
                 onChange={(e) => setUniformColor(e.target.value)}
-                placeholder="Ej. Blanco con franjas rojas"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+                placeholder="Ej. Azul marino con blanco"
+                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Nombre del Capitán / Delegado *
+                Nombre Completo del Capitán *
               </label>
               <input
                 type="text"
                 required
                 value={captainName}
                 onChange={(e) => setCaptainName(e.target.value)}
-                placeholder="Nombre completo del capitán"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+                placeholder="Tu nombre completo"
+                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
               />
             </div>
 
@@ -357,33 +423,36 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 value={captainPhone}
                 onChange={(e) => setCaptainPhone(e.target.value)}
                 placeholder="Ej. 55 1234 5678"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
               />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                Axel Javier te enviará la confirmación oficial a este número por WhatsApp.
+              </span>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Correo Electrónico
+                Correo Electrónico (Opcional)
               </label>
               <input
                 type="email"
                 value={captainEmail}
                 onChange={(e) => setCaptainEmail(e.target.value)}
                 placeholder="correo@estudiantes.edu.mx"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Grupo / Salón del Capitán
+                Grupo / Salón Escolar
               </label>
               <input
                 type="text"
                 value={captainGroup}
                 onChange={(e) => setCaptainGroup(e.target.value)}
                 placeholder="Ej. 3º Grupo B"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
               />
             </div>
           </div>
@@ -394,20 +463,20 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <User className="w-5 h-5 text-amber-400" />
-              <span>2. Plantilla de 6 Jugadores (Regla de Bases: 2 de 3º, 2 de 2º y 2 de 1º)</span>
+              <span>2. Plantilla de 6 Jugadores (Regla de Oro: 2 de 3º, 2 de 2º y 2 de 1º)</span>
             </h3>
-            <span className="text-xs text-amber-400 font-semibold">
-              Todos con documento escolar
+            <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-3 py-1 rounded-full">
+              6 Jugadores Obligatorios
             </span>
           </div>
 
           {/* Group 1: 3er Año */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/30 space-y-4">
+          <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/40 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <span className="font-display font-bold text-sm text-amber-400 uppercase tracking-wide">
-                Bloque 1 · 3er Año (2 Jugadores Obligatorios)
+                Bloque 1 · 3er Año (2 Jugadores de 3er año)
               </span>
-              <span className="text-xs text-slate-400">Cupo 2 de 2</span>
+              <span className="text-xs text-emerald-400 font-bold">Cupo 2 de 2</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -416,12 +485,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           </div>
 
           {/* Group 2: 2do Año */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/30 space-y-4">
+          <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/40 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <span className="font-display font-bold text-sm text-amber-400 uppercase tracking-wide">
-                Bloque 2 · 2do Año (2 Jugadores Obligatorios)
+                Bloque 2 · 2do Año (2 Jugadores de 2do año)
               </span>
-              <span className="text-xs text-slate-400">Cupo 2 de 2</span>
+              <span className="text-xs text-emerald-400 font-bold">Cupo 2 de 2</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -430,12 +499,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           </div>
 
           {/* Group 3: 1er Año */}
-          <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/30 space-y-4">
+          <div className="p-5 rounded-2xl bg-slate-900 border border-amber-500/40 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <span className="font-display font-bold text-sm text-amber-400 uppercase tracking-wide">
-                Bloque 3 · 1er Año (2 Jugadores Obligatorios)
+                Bloque 3 · 1er Año (2 Jugadores de 1er año)
               </span>
-              <span className="text-xs text-slate-400">Cupo 2 de 2</span>
+              <span className="text-xs text-emerald-400 font-bold">Cupo 2 de 2</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -445,19 +514,22 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
         </div>
 
-        {/* Step 3: Registration Note & Coordinator Sign-off */}
+        {/* Notice for Axel Javier */}
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-start gap-3">
           <FileText className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <span className="font-bold text-white block">Cotejo Presencial con el Organizador</span>
+            <span className="font-bold text-white block">
+              ¿Qué pasa al enviar el registro?
+            </span>
             <span>
-              Al enviar tu registro se generará tu folio oficial. Deberás presentar tus credenciales físicas o confirmación
-              con <strong>Axel Javier González Salas</strong> entre lunes y miércoles para sellar tu cédula de juego antes del jueves 12 de noviembre.
+              Se generará tu <strong>Ficha Oficial de Cédula</strong> descargable. Axel Javier González Salas
+              recibirá la notificación en su panel, revisará que tus 6 jugadores cumplan con 2 de 3º, 2 de 2º y 2 de 1º,
+              y te mandará confirmación por WhatsApp a tu teléfono.
             </span>
           </div>
         </div>
 
-        {/* Submit Actions */}
+        {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
           <button
             type="button"
@@ -468,15 +540,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="px-7 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm rounded-lg transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 disabled:opacity-50"
+            disabled={isSubmitting || teamNameIsDuplicate}
+            className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
-              <span>Registrando equipo...</span>
+              <span>Generando Ficha de Registro...</span>
             ) : (
               <>
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Registrar Equipo Oficialmente</span>
+                <CheckCircle2 className="w-5 h-5" />
+                <span>Registrar Equipo y Generar Ficha Oficial</span>
               </>
             )}
           </button>
@@ -488,12 +560,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
   function renderPlayerCard(index: number, fixedGrade: GradeYear) {
     const player = players[index];
-    const isReady = player.fullName.trim() && player.studentIdOrCurp.trim();
 
     return (
       <div
         key={index}
-        className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 relative group"
+        className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -504,8 +575,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               Jugador #{index + 1}
             </span>
           </div>
-          <span className="text-xs font-bold font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
-            {fixedGrade}º Año
+          <span className="text-xs font-bold font-mono text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full">
+            {fixedGrade}º Año Escolar
           </span>
         </div>
 
@@ -519,7 +590,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             value={player.fullName}
             onChange={(e) => handlePlayerChange(index, 'fullName', e.target.value)}
             placeholder="Ej. Rodrigo Mendoza Solís"
-            className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+            className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
           />
         </div>
 
@@ -533,8 +604,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               required
               value={player.studentIdOrCurp}
               onChange={(e) => handlePlayerChange(index, 'studentIdOrCurp', e.target.value)}
-              placeholder="Ej. MAT-3B-2024"
-              className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white font-mono focus:outline-none focus:border-amber-400"
+              placeholder="MAT-2026..."
+              className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-amber-400"
             />
           </div>
 
@@ -545,7 +616,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <select
               value={player.position}
               onChange={(e) => handlePlayerChange(index, 'position', e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+              className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
             >
               <option value="Portero">Portero</option>
               <option value="Defensa">Defensa</option>
@@ -567,19 +638,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               value={player.jerseyNumber}
               onChange={(e) => handlePlayerChange(index, 'jerseyNumber', e.target.value)}
               placeholder="10"
-              className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded text-white font-mono focus:outline-none focus:border-amber-400"
+              className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-amber-400"
             />
           </div>
 
           <div>
             <label className="block text-[11px] font-semibold text-slate-400 mb-0.5">
-              Grado Oficial
+              Grado Oficial Asignado
             </label>
             <input
               type="text"
               readOnly
-              value={`${fixedGrade}º Año Escolar`}
-              className="w-full px-3 py-1.5 text-xs bg-slate-900/50 border border-slate-800 rounded text-slate-400 font-semibold cursor-not-allowed"
+              value={`${fixedGrade}º Año`}
+              className="w-full px-3 py-1.5 text-xs bg-slate-900/50 border border-slate-800 rounded-lg text-slate-400 font-bold cursor-not-allowed"
             />
           </div>
         </div>
@@ -588,23 +659,23 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         <div className="pt-2 border-t border-slate-800">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-semibold text-slate-300">
-              Comprobante de Grado / Credencial
+              Credencial Escolar o Constancia
             </span>
             {player.documentUrl ? (
-              <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                Cargado
+              <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Cargada
               </span>
             ) : (
-              <span className="text-[10px] text-amber-400 font-medium">Requerido</span>
+              <span className="text-[10px] text-amber-400 font-medium">Requerida</span>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="flex-1 cursor-pointer py-1.5 px-2 bg-slate-900 hover:bg-slate-850 border border-dashed border-slate-700 hover:border-amber-400/60 rounded text-center transition-colors">
+            <label className="flex-1 cursor-pointer py-1.5 px-2 bg-slate-900 hover:bg-slate-800 border border-dashed border-slate-700 hover:border-amber-400/60 rounded-lg text-center transition-colors">
               <span className="text-[11px] text-slate-300 flex items-center justify-center gap-1">
                 <Upload className="w-3 h-3 text-amber-400" />
-                <span>{player.documentName ? 'Cambiar archivo' : 'Subir foto/credencial'}</span>
+                <span>{player.documentName ? 'Cambiar archivo' : 'Subir foto credencial'}</span>
               </span>
               <input
                 type="file"
@@ -617,21 +688,21 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <button
               type="button"
               onClick={() => handleAutoGenerateCredential(index)}
-              title="Generar credencial digital escolar automática para este alumno"
-              className="py-1.5 px-2 text-[10px] font-semibold bg-slate-800 hover:bg-slate-700 text-amber-400 rounded border border-slate-700 transition-colors whitespace-nowrap"
+              title="Generar credencial escolar automática"
+              className="py-1.5 px-2.5 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg border border-slate-700 transition-colors whitespace-nowrap"
             >
               Auto-Credencial
             </button>
           </div>
 
           {player.documentUrl && (
-            <div className="mt-1.5 flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-800">
               <img
                 src={player.documentUrl}
                 alt="Vista previa"
-                className="w-10 h-7 object-cover rounded border border-slate-700"
+                className="w-10 h-7 object-cover rounded border border-slate-700 shrink-0"
               />
-              <span className="text-[10px] text-slate-400 truncate flex-1">
+              <span className="text-[10px] text-slate-300 truncate flex-1 font-mono">
                 {player.documentName}
               </span>
             </div>

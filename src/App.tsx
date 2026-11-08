@@ -10,13 +10,15 @@ import { OfficialGameSheetModal } from './components/OfficialGameSheetModal';
 import { GitSyncModal } from './components/GitSyncModal';
 import { Team, Player } from './types/tournament';
 import { loadTeamsFromStorage, saveTeamsToStorage } from './utils/storage';
-import { CheckCircle2, Trophy, Printer, ArrowRight, ShieldCheck, User } from 'lucide-react';
+import { generateCaptainToAxelLink } from './utils/whatsappHelper';
+import { CheckCircle2, Trophy, Printer, ArrowRight, MessageCircle, ExternalLink, Bell } from 'lucide-react';
 
 export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentTab, setCurrentTab] = useState<'bases' | 'registro' | 'equipos' | 'fixture' | 'admin'>('bases');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [newRegistrationsCount, setNewRegistrationsCount] = useState(1); // 1 to demo notification for Axel
 
   // Modals state
   const [documentModal, setDocumentModal] = useState<{
@@ -56,6 +58,7 @@ export default function App() {
     const updated = [team, ...teams];
     handleUpdateTeams(updated);
     setNewlyRegisteredTeam(team);
+    setNewRegistrationsCount((prev) => prev + 1);
   };
 
   const handleOpenDocModal = (player: Player, team: Team) => {
@@ -84,7 +87,6 @@ export default function App() {
             : p
         );
 
-        // Check if all players now have approved documents
         const allApproved = updatedPlayers.every((p) => p.document.status === 'approved');
 
         return {
@@ -163,6 +165,7 @@ export default function App() {
                 setIsAdmin(true);
                 setCurrentTab('admin');
               }}
+              registeredTeamsCount={teams.length}
             />
             
             {/* Quick public listing preview */}
@@ -179,6 +182,7 @@ export default function App() {
 
         {currentTab === 'registro' && (
           <RegistrationForm
+            existingTeams={teams}
             onRegisterSuccess={handleRegisterSuccess}
             onCancel={() => setCurrentTab('bases')}
           />
@@ -204,6 +208,8 @@ export default function App() {
             onOpenDocumentModal={handleOpenDocModal}
             onOpenGameSheetModal={(team) => setGameSheetModal({ isOpen: true, team })}
             onOpenNewRegistration={() => setCurrentTab('registro')}
+            newRegistrationsCount={newRegistrationsCount}
+            onClearNewNotification={() => setNewRegistrationsCount(0)}
           />
         )}
       </main>
@@ -234,78 +240,93 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Registration Success Dialog */}
+      {/* Registration Success Dialog with Immediate Ficha Download & WhatsApp sharing */}
       {newlyRegisteredTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-slate-900 border-2 border-amber-500/50 rounded-3xl shadow-2xl p-6 space-y-5">
             
             <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-8 h-8" />
+              <div className="w-16 h-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto text-3xl">
+                ⚽
               </div>
-              <h3 className="font-display text-xl font-bold text-white">
+              <h3 className="font-display text-2xl font-black text-white">
                 ¡Equipo Registrado con Éxito!
               </h3>
               <p className="text-xs text-slate-300">
-                Tu solicitud ha sido guardada en el padrón del Torneo Relámpago de Fútbol.
+                Se ha generado tu Ficha Oficial de Inscripción para el Torneo Relámpago.
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
+            {/* Official Card Details */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
               <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                <span className="text-slate-400">Folio Oficial Asignado:</span>
-                <span className="font-mono text-base font-bold text-amber-400">
+                <span className="text-slate-400 font-semibold uppercase text-[10px]">Folio Oficial de Inscripción:</span>
+                <span className="font-mono text-lg font-black text-amber-400 bg-amber-500/10 px-3 py-1 rounded-lg">
                   {newlyRegisteredTeam.folio}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Equipo:</span>
-                <span className="font-bold text-white">{newlyRegisteredTeam.name}</span>
+                <span className="font-bold text-white text-sm">{newlyRegisteredTeam.name}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Capitán:</span>
                 <span className="text-slate-200">{newlyRegisteredTeam.captain.fullName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Plantilla:</span>
-                <span className="text-slate-200">6 Jugadores (2 de 3º, 2 de 2º y 2 de 1º)</span>
+                <span className="text-slate-400">WhatsApp Registrado:</span>
+                <span className="text-emerald-400 font-mono font-bold">{newlyRegisteredTeam.captain.phone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Plantilla Oficial:</span>
+                <span className="text-amber-400 font-bold">6 Jugadores (2 de 3º, 2 de 2º y 2 de 1º)</span>
               </div>
             </div>
 
-            {/* Instruction strip for Axel Javier González Salas */}
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-slate-300 flex items-start gap-2.5">
-              <User className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="text-amber-300 block">Paso obligatorio para validar inscripción:</strong>
-                <span>
-                  Favor de pasar a registrar tus equipos y presentar credenciales físicas con{' '}
-                  <strong className="text-white">Axel Javier González Salas</strong> de <strong>lunes a miércoles</strong>{' '}
-                  para recibir el sello oficial en tu cédula de juego antes del jueves 12 de noviembre.
-                </span>
-              </div>
+            {/* Action 1: Send via WhatsApp to Axel */}
+            <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-600/40 space-y-2">
+              <span className="text-xs font-bold text-emerald-300 block flex items-center gap-1.5">
+                <MessageCircle className="w-4 h-4 text-emerald-400" />
+                Paso 1: Notificar a Axel Javier González Salas
+              </span>
+              <p className="text-[11px] text-slate-300">
+                Envía tu ficha por WhatsApp para que Axel coteje tus credenciales de 3º, 2º y 1er año:
+              </p>
+              <a
+                href={generateCaptainToAxelLink(newlyRegisteredTeam)}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Enviar Ficha por WhatsApp a Axel Javier</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            {/* Action 2: Download / Print Ficha */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
               <button
                 onClick={() => {
                   const t = newlyRegisteredTeam;
                   setNewlyRegisteredTeam(null);
                   setGameSheetModal({ isOpen: true, team: t });
                 }}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-lg border border-slate-700 transition-colors flex items-center gap-1.5"
+                className="w-full sm:w-auto flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center justify-center gap-2"
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Ver Cédula Oficial</span>
+                <Printer className="w-4 h-4" />
+                <span>Descargar / Imprimir Ficha Oficial</span>
               </button>
+
               <button
                 onClick={() => {
                   setNewlyRegisteredTeam(null);
                   setCurrentTab('equipos');
                 }}
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-all flex items-center gap-1.5"
+                className="w-full sm:w-auto px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
               >
-                <span>Aceptar y Ver Padrón</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Ver Padrón de Equipos</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
 

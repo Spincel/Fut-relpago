@@ -10,17 +10,21 @@ import {
   Download,
   RotateCcw,
   Search,
-  Filter,
   CheckCircle,
   XCircle,
   Eye,
   RefreshCw,
   Award,
+  MessageCircle,
+  Bell,
+  Send,
+  ExternalLink,
 } from 'lucide-react';
 import { Team, Player, GradeYear, PlayerPosition } from '../types/tournament';
 import { evaluateTeamRules, canSubstitutePlayer } from '../utils/rulesValidator';
 import { exportTeamsToCSV, resetTeamsToDefault } from '../utils/storage';
 import { createMockCredential } from '../data/initialTeams';
+import { generateWhatsAppApprovalLink, generateWhatsAppObservationsLink } from '../utils/whatsappHelper';
 
 interface AdminPanelProps {
   teams: Team[];
@@ -28,6 +32,8 @@ interface AdminPanelProps {
   onOpenDocumentModal: (player: Player, team: Team) => void;
   onOpenGameSheetModal: (team: Team) => void;
   onOpenNewRegistration: () => void;
+  newRegistrationsCount?: number;
+  onClearNewNotification?: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -36,6 +42,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenDocumentModal,
   onOpenGameSheetModal,
   onOpenNewRegistration,
+  newRegistrationsCount = 0,
+  onClearNewNotification,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'compliant' | 'irregular' | 'disqualified'>('all');
@@ -103,10 +111,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const activeSelectedTeam = teams.find((t) => t.id === selectedTeamId) || filteredTeams[0] || null;
 
+  // 1-Click Complete Validation for Team (Axel's shortcut)
+  const handleValidateEntireTeam = (team: Team) => {
+    const updatedPlayers = team.players.map((p) => ({
+      ...p,
+      document: {
+        ...p.document,
+        status: 'approved' as const,
+        rejectionReason: undefined,
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: 'Axel Javier González Salas',
+      },
+    }));
+
+    const updated = teams.map((t) =>
+      t.id === team.id
+        ? {
+            ...t,
+            status: 'approved' as const,
+            players: updatedPlayers,
+            updatedAt: new Date().toISOString(),
+            notes: `${t.notes || ''} | Validado al 100% por Axel Javier González Salas.`,
+          }
+        : t
+    );
+
+    onUpdateTeams(updated);
+
+    // Prompt Axel to send WhatsApp confirmation
+    const waLink = generateWhatsAppApprovalLink({ ...team, players: updatedPlayers, status: 'approved' });
+    if (window.confirm(`¡Equipo "${team.name}" validado con éxito! 🏆\n\n¿Deseas abrir WhatsApp ahora para enviarle la confirmación al capitán (${team.captain.phone})?`)) {
+      window.open(waLink, '_blank');
+    }
+  };
+
   // Actions for teams (Altas / Bajas / Reactivación)
   const handleDisqualifyTeam = (teamId: string) => {
     const reason = window.prompt(
-      'Motivo de la baja o descalificación del equipo (ej. "Incumplimiento reiterado de bases escolares", "Baja voluntaria"):'
+      'Motivo de la baja o descalificación del equipo (ej. "Incumplimiento de bases", "Baja voluntaria"):'
     );
     if (reason === null) return;
 
@@ -138,7 +180,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleDeleteTeam = (teamId: string) => {
-    if (!window.confirm('¿Confirmas eliminar permanentemente el registro de este equipo? Esta acción no se puede deshacer.')) {
+    if (!window.confirm('¿Confirmas eliminar permanentemente el registro de este equipo?')) {
       return;
     }
     const updated = teams.filter((t) => t.id !== teamId);
@@ -148,7 +190,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Actions for Player deactivation & substitution
+  // Player substitution preserving Grade
   const handleOpenSubstitution = (teamId: string, player: Player) => {
     setSubstitutionModal({
       isOpen: true,
@@ -167,7 +209,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!substitutionModal.player) return;
     const { player, teamId } = substitutionModal;
 
-    // Validate Grade enforcement!
     const subCheck = canSubstitutePlayer(player, subGrade);
     if (!subCheck.allowed) {
       setSubError(subCheck.reason || 'Grado no permitido');
@@ -175,7 +216,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
 
     if (!subName.trim() || !subCurp.trim()) {
-      setSubError('Debes completar el nombre completo y la matrícula o CURP del nuevo alumno.');
+      setSubError('Completa el nombre y la matrícula del alumno sustituto.');
       return;
     }
 
@@ -203,7 +244,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const updated = teams.map((t) => {
       if (t.id === teamId) {
-        // Deactivate old player and append the new compliant player
         const updatedPlayers = t.players.map((p) =>
           p.id === player.id
             ? { ...p, isActive: false, deactivationReason: `Sustituido por ${subName.trim()} (${subGrade}º Año)` }
@@ -213,7 +253,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           ...t,
           players: [...updatedPlayers, newPlayer],
           updatedAt: new Date().toISOString(),
-          notes: `${t.notes || ''} | Sustitución realizada: ${player.fullName} fue reemplazado por ${subName.trim()} (${subGrade}º Año).`,
+          notes: `${t.notes || ''} | Sustitución: ${player.fullName} reemplazado por ${subName.trim()} (${subGrade}º Año).`,
         };
       }
       return t;
@@ -253,14 +293,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `padron_torneo_relampago_12nov_${Date.now()}.csv`);
+    link.setAttribute('download', `equipos_torneo_relampago_axel_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const handleResetData = () => {
-    if (window.confirm('¿Deseas restablecer la lista de equipos a los datos iniciales de demostración?')) {
+    if (window.confirm('¿Restablecer equipos iniciales de prueba?')) {
       const reset = resetTeamsToDefault();
       onUpdateTeams(reset);
       setSelectedTeamId(reset[0]?.id || null);
@@ -268,152 +308,165 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       
-      {/* Top Banner: Coordinator Badge */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-amber-500/30 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <ShieldCheck className="w-6 h-6" />
+      {/* New Registrations Alert Banner for Axel */}
+      {newRegistrationsCount > 0 && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 font-bold flex items-center justify-between gap-4 shadow-xl shadow-amber-500/20 animate-bounce-once">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center">
+              <Bell className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <span className="text-sm sm:text-base font-black uppercase tracking-tight block">
+                ¡Axel, tienes {newRegistrationsCount} nuevo(s) equipo(s) registrado(s)!
+              </span>
+              <span className="text-xs text-slate-900 font-medium">
+                Revisa que cumplan la regla 2-2-2, valida sus documentos y confírmales por WhatsApp.
+              </span>
+            </div>
+          </div>
+
+          {onClearNewNotification && (
+            <button
+              onClick={onClearNewNotification}
+              className="px-3.5 py-1.5 bg-slate-950 text-white rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors shrink-0"
+            >
+              Marcar como Visto
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Organizer Header Profile */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border-2 border-amber-500/40 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl font-bold">
+            ⚽
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider">
-                Mesa de Control Oficial
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                Panel Oficial del Organizador (14 Años)
               </span>
-              <span className="text-xs text-slate-500">·</span>
-              <span className="text-xs text-slate-400">Torneo Relámpago</span>
+              <span className="text-slate-500">·</span>
+              <span className="text-xs text-emerald-400 font-bold">Mesa de Control Activa</span>
             </div>
-            <h2 className="text-xl font-bold font-display text-white mt-0.5">
-              Panel del Organizador: Axel Javier González Salas
+            <h2 className="text-2xl font-black font-display text-white mt-0.5">
+              Axel Javier González Salas
             </h2>
-            <p className="text-xs text-slate-400">
-              Gestión centralizada de altas presenciales, bajas de equipos/jugadores y validación documental de las bases 2-2-2.
+            <p className="text-xs text-slate-300">
+              Torneo Relámpago de Fútbol · Jueves 12 de Noviembre · Validador de Regla 2-2-2
             </p>
           </div>
         </div>
 
-        {/* Global Admin Actions */}
+        {/* Global Action Buttons */}
         <div className="flex items-center gap-2.5">
           <button
             onClick={onOpenNewRegistration}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5"
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
           >
-            <UserPlus className="w-4 h-4" />
-            <span>Nueva Alta Presencial</span>
+            <UserPlus className="w-4 h-4 text-slate-950" />
+            <span>+ Alta Presencial</span>
           </button>
           <button
             onClick={handleDownloadCSV}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-lg border border-slate-700 transition-colors flex items-center gap-1.5"
-            title="Exportar plantilla a Excel / CSV"
+            className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
+            title="Descargar lista de equipos en Excel / CSV"
           >
             <Download className="w-4 h-4 text-amber-400" />
-            <span>Exportar CSV</span>
+            <span>Descargar Excel</span>
           </button>
           <button
             onClick={handleResetData}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 border border-slate-700 transition-colors"
-            title="Restablecer datos de prueba"
+            className="p-2.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 border border-slate-700 transition-colors"
+            title="Restablecer equipos de prueba"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Metric Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
+      {/* Simple Summary Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span>Equipos Registrados</span>
+            <span className="font-bold">Equipos Totales</span>
             <Users className="w-4 h-4 text-amber-400" />
           </div>
-          <span className="text-2xl font-bold font-mono text-white tabular-nums">
+          <span className="text-3xl font-black font-mono text-white tabular-nums">
             {totalTeams}
           </span>
-          <span className="text-[11px] text-slate-400 block mt-1">Convocatoria oficial</span>
+          <span className="text-xs text-slate-400 block mt-1">Padrón oficial</span>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span>Cumplen Regla 2-2-2</span>
+            <span className="font-bold">Cumplen Regla 2-2-2</span>
             <CheckCircle className="w-4 h-4 text-emerald-400" />
           </div>
-          <span className="text-2xl font-bold font-mono text-emerald-400 tabular-nums">
+          <span className="text-3xl font-black font-mono text-emerald-400 tabular-nums">
             {compliantCount}
           </span>
-          <span className="text-[11px] text-slate-400 block mt-1">100% listos para jugar</span>
+          <span className="text-xs text-slate-400 block mt-1">Listos para el Jueves 12</span>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span>Fuera de Regla / Irregulares</span>
+            <span className="font-bold">Por Corregir / Irregulares</span>
             <AlertTriangle className="w-4 h-4 text-amber-400" />
           </div>
-          <span className="text-2xl font-bold font-mono text-amber-400 tabular-nums">
+          <span className="text-3xl font-black font-mono text-amber-400 tabular-nums">
             {irregularCount}
           </span>
-          <span className="text-[11px] text-slate-400 block mt-1">Requieren ajuste de grado</span>
+          <span className="text-xs text-slate-400 block mt-1">Faltan o sobran de algún grado</span>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span>Documentos Pendientes</span>
+            <span className="font-bold">Credenciales Pendientes</span>
             <FileCheck2 className="w-4 h-4 text-sky-400" />
           </div>
-          <span className="text-2xl font-bold font-mono text-sky-400 tabular-nums">
+          <span className="text-3xl font-black font-mono text-sky-400 tabular-nums">
             {pendingDocsCount}
           </span>
-          <span className="text-[11px] text-slate-400 block mt-1">Por validar credencial</span>
-        </div>
-
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 col-span-2 lg:col-span-1">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span>Alumnos por Grado</span>
-            <Award className="w-4 h-4 text-orange-400" />
-          </div>
-          <div className="flex items-center justify-between text-xs font-mono font-bold mt-2">
-            <span className="text-amber-400">3º: {grade3Total}</span>
-            <span className="text-amber-400">2º: {grade2Total}</span>
-            <span className="text-amber-400">1º: {grade1Total}</span>
-          </div>
-          <span className="text-[10px] text-slate-400 block mt-1">Total activos: {totalActivePlayers}</span>
+          <span className="text-xs text-slate-400 block mt-1">Por cotejar con Axel</span>
         </div>
       </div>
 
-      {/* Main Content Workspace: Teams Sidebar & Detailed Inspector */}
+      {/* Main Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Column: Teams List with Search & Filter Tabs */}
-        <div className="lg:col-span-5 bg-slate-900 rounded-2xl border border-slate-800 p-4 space-y-4">
+        {/* Left: Team Selector List */}
+        <div className="lg:col-span-5 bg-slate-900 rounded-2xl border border-slate-800 p-4 space-y-4 shadow-lg">
           
           <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-sm text-white">
-              Padrón de Equipos
+            <h3 className="font-display font-black text-base text-white">
+              Lista de Equipos ({filteredTeams.length})
             </h3>
-            <span className="text-xs font-mono text-slate-400">
-              {filteredTeams.length} de {teams.length}
-            </span>
+            <span className="text-xs text-slate-400">Selecciona uno para gestionar</span>
           </div>
 
-          {/* Search Box */}
+          {/* Search Input */}
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar por equipo, folio o capitán..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+              className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
             />
           </div>
 
-          {/* Interactive Filter Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-lg text-xs">
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl text-xs font-semibold">
             <button
               onClick={() => setFilterStatus('all')}
-              className={`flex-1 py-1.5 px-2 rounded-md font-medium transition-colors ${
+              className={`flex-1 py-1.5 px-2 rounded-lg transition-colors ${
                 filterStatus === 'all'
-                  ? 'bg-slate-800 text-white shadow-sm'
+                  ? 'bg-slate-800 text-white'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -421,9 +474,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
             <button
               onClick={() => setFilterStatus('compliant')}
-              className={`flex-1 py-1.5 px-2 rounded-md font-medium transition-colors ${
+              className={`flex-1 py-1.5 px-2 rounded-lg transition-colors ${
                 filterStatus === 'compliant'
-                  ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 shadow-sm'
+                  ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -431,19 +484,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
             <button
               onClick={() => setFilterStatus('irregular')}
-              className={`flex-1 py-1.5 px-2 rounded-md font-medium transition-colors ${
+              className={`flex-1 py-1.5 px-2 rounded-lg transition-colors ${
                 filterStatus === 'irregular'
-                  ? 'bg-amber-950/80 text-amber-300 border border-amber-800/60 shadow-sm'
+                  ? 'bg-amber-950/80 text-amber-300 border border-amber-800'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Irregulares
+              Observados
             </button>
             <button
               onClick={() => setFilterStatus('disqualified')}
-              className={`flex-1 py-1.5 px-2 rounded-md font-medium transition-colors ${
+              className={`flex-1 py-1.5 px-2 rounded-lg transition-colors ${
                 filterStatus === 'disqualified'
-                  ? 'bg-rose-950/80 text-rose-300 border border-rose-800/60 shadow-sm'
+                  ? 'bg-rose-950/80 text-rose-300 border border-rose-800'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -451,80 +504,75 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
           </div>
 
-          {/* Team Cards List */}
-          <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
-            {filteredTeams.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 text-xs">
-                No se encontraron equipos con el filtro seleccionado.
-              </div>
-            ) : (
-              filteredTeams.map((team) => {
-                const check = evaluateTeamRules(team);
-                const isSelected = selectedTeamId === team.id;
+          {/* Teams list */}
+          <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
+            {filteredTeams.map((team) => {
+              const check = evaluateTeamRules(team);
+              const isSelected = selectedTeamId === team.id;
 
-                return (
-                  <div
-                    key={team.id}
-                    onClick={() => setSelectedTeamId(team.id)}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer text-left ${
-                      isSelected
-                        ? 'bg-slate-950 border-amber-500/80 shadow-md ring-1 ring-amber-500/30'
-                        : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-mono text-amber-400 font-semibold">{team.folio}</span>
-                      
-                      {team.status === 'disqualified' ? (
-                        <span className="text-[11px] text-rose-400 font-bold flex items-center gap-1">
-                          <XCircle className="w-3.5 h-3.5" />
-                          Baja / Descalificado
-                        </span>
-                      ) : check.isFullyCompliant ? (
-                        <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          Regla 2-2-2 Cumplida
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          Revisar Bases
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="text-sm font-bold text-white leading-tight">
-                      {team.name}
-                    </h4>
-
-                    <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
-                      <span>Capitán: {team.captain.fullName}</span>
-                      <span className="font-mono text-slate-300">
-                        {check.totalPlayers}/6 Jugadores
+              return (
+                <div
+                  key={team.id}
+                  onClick={() => setSelectedTeamId(team.id)}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-slate-950 border-amber-500 shadow-md ring-1 ring-amber-500/40'
+                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-mono text-amber-400 font-bold">{team.folio}</span>
+                    
+                    {team.status === 'disqualified' ? (
+                      <span className="text-[11px] text-rose-400 font-bold flex items-center gap-1">
+                        <XCircle className="w-3.5 h-3.5" />
+                        Baja
                       </span>
-                    </div>
-
-                    {/* Grade Distribution Micro-indicator */}
-                    <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
-                      <span className={check.grade3Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
-                        3º Año: {check.grade3Count}/2
+                    ) : check.isFullyCompliant ? (
+                      <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        ✓ Regla 2-2-2 Válida
                       </span>
-                      <span className={check.grade2Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
-                        2º Año: {check.grade2Count}/2
+                    ) : (
+                      <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Revisar Composición
                       </span>
-                      <span className={check.grade1Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
-                        1er Año: {check.grade1Count}/2
-                      </span>
-                    </div>
+                    )}
                   </div>
-                );
-              })
-            )}
+
+                  <h4 className="text-base font-bold text-white">
+                    {team.name}
+                  </h4>
+
+                  <div className="mt-1 text-xs text-slate-400 flex items-center justify-between">
+                    <span>Capitán: <strong className="text-slate-300">{team.captain.fullName}</strong></span>
+                    <span className="font-mono text-slate-300 font-bold">
+                      {check.totalPlayers}/6 Jugadores
+                    </span>
+                  </div>
+
+                  {/* 2-2-2 mini row */}
+                  <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
+                    <span className={check.grade3Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
+                      3º: {check.grade3Count}/2
+                    </span>
+                    <span className={check.grade2Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
+                      2º: {check.grade2Count}/2
+                    </span>
+                    <span className={check.grade1Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
+                      1º: {check.grade1Count}/2
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
+
         </div>
 
-        {/* Right Column: Detailed Selected Team Inspector & Action Suite */}
-        <div className="lg:col-span-7 bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-6">
+        {/* Right: Team Management & WhatsApp Actions */}
+        <div className="lg:col-span-7 bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-6 shadow-lg">
           {activeSelectedTeam ? (
             (() => {
               const team = activeSelectedTeam;
@@ -532,70 +580,123 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               const activePlayers = team.players.filter((p) => p.isActive);
               const inactivePlayers = team.players.filter((p) => !p.isActive);
 
+              const waApprovalLink = generateWhatsAppApprovalLink(team);
+              const waObservationsLink = generateWhatsAppObservationsLink(team, check.issues);
+
               return (
                 <div className="space-y-6">
                   
-                  {/* Team Header & Actions */}
+                  {/* Team Identity Banner */}
                   <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-amber-400 font-bold">{team.folio}</span>
                         <span className="text-slate-500">·</span>
                         <span className="text-xs text-slate-400">
-                          Registrado: {new Date(team.createdAt).toLocaleDateString('es-MX')}
+                          {team.registeredBy === 'admin_desk' ? 'Inscrito en mesa presencial' : 'Inscripción vía web'}
                         </span>
-                        {team.registeredBy === 'admin_desk' && (
-                          <span className="text-[10px] bg-slate-800 text-amber-300 px-2 py-0.5 rounded font-medium">
-                            Ventanilla Axel Javier
-                          </span>
-                        )}
                       </div>
-
-                      <h2 className="text-2xl font-bold font-display text-white mt-1">
+                      <h2 className="text-2xl sm:text-3xl font-black font-display text-white mt-1">
                         {team.name}
                       </h2>
                       <span className="text-xs text-slate-300">
-                        Color / Distintivo: <strong>{team.uniformColor}</strong>
+                        Uniforme / Color: <strong className="text-amber-400">{team.uniformColor}</strong>
                       </span>
                     </div>
 
-                    {/* Operational Buttons */}
+                    {/* Operational Top Buttons */}
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => onOpenGameSheetModal(team)}
-                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-lg border border-slate-700 transition-colors flex items-center gap-1.5 shadow"
-                        title="Imprimir Cédula de Partido oficial"
+                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5 shadow"
+                        title="Ver e imprimir cédula oficial de partido"
                       >
                         <FileText className="w-4 h-4" />
-                        <span>Cédula de Juego</span>
+                        <span>Imprimir Cédula</span>
                       </button>
 
                       {team.status === 'disqualified' ? (
                         <button
                           onClick={() => handleReactivateTeam(team.id)}
-                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1"
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-1"
                         >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Reactivar Equipo</span>
+                          <RefreshCw className="w-4 h-4" />
+                          <span>Reactivar</span>
                         </button>
                       ) : (
                         <button
                           onClick={() => handleDisqualifyTeam(team.id)}
-                          className="px-3 py-2 bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-800 font-bold text-xs rounded-lg transition-colors flex items-center gap-1"
+                          className="px-3.5 py-2 bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1"
                           title="Dar de baja o descalificar equipo"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                           <span>Dar de Baja</span>
                         </button>
                       )}
 
                       <button
                         onClick={() => handleDeleteTeam(team.id)}
-                        className="p-2 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition-colors"
-                        title="Eliminar registro"
+                        className="p-2 text-slate-500 hover:text-rose-400 rounded-xl hover:bg-slate-800 transition-colors"
+                        title="Eliminar permanentemente"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Primary WhatsApp Direct Communication Card */}
+                  <div className="p-4 rounded-2xl bg-emerald-950/40 border-2 border-emerald-600/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5 text-emerald-400" />
+                        <span className="font-bold text-sm text-emerald-300">
+                          Notificación Oficial por WhatsApp al Capitán
+                        </span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-slate-300">
+                        {team.captain.phone}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-300">
+                      Axel, con un solo clic puedes abrir WhatsApp con el mensaje oficial redactado
+                      para enviárselo directamente a <strong>{team.captain.fullName}</strong>:
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                      {check.isFullyCompliant ? (
+                        <a
+                          href={waApprovalLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-2"
+                        >
+                          <Send className="w-4 h-4" />
+                          <span>Enviar WhatsApp de EQUIPO VALIDADO ✓</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      ) : (
+                        <a
+                          href={waObservationsLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-2"
+                        >
+                          <Send className="w-4 h-4 text-slate-950" />
+                          <span>Enviar WhatsApp con OBSERVACIONES DE REGLAS ⚠️</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+
+                      {!check.areAllDocumentsApproved && (
+                        <button
+                          onClick={() => handleValidateEntireTeam(team)}
+                          className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          <span>Aprobar Todos los Documentos de este Equipo</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -603,21 +704,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div
                     className={`p-4 rounded-xl border text-xs space-y-2 ${
                       check.isFullyCompliant
-                        ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-200'
-                        : 'bg-amber-950/30 border-amber-800/60 text-amber-200'
+                        ? 'bg-emerald-950/25 border-emerald-800 text-emerald-200'
+                        : 'bg-amber-950/25 border-amber-800 text-amber-200'
                     }`}
                   >
                     <div className="flex items-center justify-between font-bold text-sm">
                       <span className="flex items-center gap-2">
                         {check.isFullyCompliant ? (
-                          <CheckCircle className="w-4 h-4 text-emerald-400" />
+                          <CheckCircle className="w-5 h-5 text-emerald-400" />
                         ) : (
-                          <AlertTriangle className="w-4 h-4 text-amber-400" />
+                          <AlertTriangle className="w-5 h-5 text-amber-400" />
                         )}
                         <span>
                           {check.isFullyCompliant
-                            ? 'Plantilla 100% Cumplida con las Bases Oficiales'
-                            : 'Observaciones de Reglas Oficiales (Axel Javier González Salas)'}
+                            ? '¡Plantilla perfecta! Cumple 100% con las bases oficiales 2-2-2.'
+                            : 'Observaciones de Reglas Oficiales:'}
                         </span>
                       </span>
 
@@ -646,16 +747,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     )}
                   </div>
 
-                  {/* Captain & Contact Card */}
+                  {/* Captain Contact Information */}
                   <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                     <div>
-                      <span className="text-slate-400 block font-semibold">Capitán / Contacto:</span>
+                      <span className="text-slate-400 block font-semibold">Capitán:</span>
                       <strong className="text-white text-sm">{team.captain.fullName}</strong>
                       <span className="text-slate-400 block">{team.captain.groupOrClass}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-semibold">Teléfono / WhatsApp:</span>
-                      <strong className="text-slate-200 font-mono">{team.captain.phone}</strong>
+                      <span className="text-slate-400 block font-semibold">WhatsApp de contacto:</span>
+                      <strong className="text-emerald-400 font-mono text-sm">{team.captain.phone}</strong>
                     </div>
                     <div>
                       <span className="text-slate-400 block font-semibold">Correo:</span>
@@ -663,15 +764,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Active Roster of Players */}
+                  {/* Active 6 Players Roster */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-bold text-white flex items-center gap-2">
                         <Users className="w-4 h-4 text-amber-400" />
-                        <span>Plantilla Activa ({activePlayers.length} / 6)</span>
+                        <span>Plantilla de Jugadores ({activePlayers.length} / 6)</span>
                       </h4>
                       <span className="text-xs text-slate-400">
-                        Haz clic en un documento para revisarlo con zoom
+                        Haz clic en "Ver Doc" para inspeccionar credencial con zoom
                       </span>
                     </div>
 
@@ -679,7 +780,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       {activePlayers.map((player) => (
                         <div
                           key={player.id}
-                          className="p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition-colors flex flex-wrap items-center justify-between gap-3 text-xs"
+                          className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs"
                         >
                           <div className="flex items-center gap-3">
                             <span className="w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 font-mono font-bold text-white flex items-center justify-center">
@@ -705,10 +806,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                           {/* Document Status & Actions */}
                           <div className="flex items-center gap-2">
-                            {/* Document badge */}
                             <button
                               onClick={() => onOpenDocumentModal(player, team)}
-                              className={`px-2.5 py-1 rounded text-[11px] font-semibold flex items-center gap-1.5 transition-colors border ${
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors border ${
                                 player.document.status === 'approved'
                                   ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800 hover:bg-emerald-900/60'
                                   : player.document.status === 'pending'
@@ -727,21 +827,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               </span>
                             </button>
 
-                            {/* Quick approve button if pending */}
                             {player.document.status !== 'approved' && (
                               <button
                                 onClick={() => handleQuickApproveDoc(team.id, player.id)}
-                                className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded transition-colors"
+                                className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded-lg transition-colors"
                                 title="Aprobar inmediatamente documento"
                               >
                                 <CheckCircle className="w-4 h-4" />
                               </button>
                             )}
 
-                            {/* Substitute button */}
                             <button
                               onClick={() => handleOpenSubstitution(team.id, player)}
-                              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-medium border border-slate-700 transition-colors"
+                              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium border border-slate-700 transition-colors"
                               title="Dar de baja y sustituir respetando el grado escolar"
                             >
                               Sustituir
@@ -752,11 +850,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Inactive / Substituted players history */}
+                  {/* Substitution History */}
                   {inactivePlayers.length > 0 && (
                     <div className="pt-3 border-t border-slate-800 space-y-2">
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                        Historial de Bajas y Sustituciones de este equipo:
+                        Bajas y Sustituciones Previas:
                       </span>
                       {inactivePlayers.map((p) => (
                         <div
@@ -777,29 +875,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             })()
           ) : (
             <div className="p-12 text-center text-slate-400 text-sm">
-              Selecciona un equipo del listado para gestionar sus altas, bajas y validación de documentos.
+              Selecciona un equipo de la lista de la izquierda para comenzar a gestionarlo.
             </div>
           )}
         </div>
 
       </div>
 
-      {/* Substitution Modal with STRICT 2-2-2 Grade enforcement */}
+      {/* Substitution Modal */}
       {substitutionModal.isOpen && substitutionModal.player && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 space-y-4">
             
             <div className="border-b border-slate-800 pb-3">
-              <span className="text-xs font-mono text-amber-400 font-semibold block">
-                Mesa de Control · Axel Javier González Salas
+              <span className="text-xs font-mono text-amber-400 font-bold block">
+                Sustitución en Mesa de Control · Axel Javier
               </span>
               <h3 className="text-base font-bold text-white mt-1">
-                Sustitución de Jugador (Regla de Bases)
+                Sustituir Jugador de {substitutionModal.player.grade}º Año
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-300 mt-1">
                 El jugador saliente <strong>{substitutionModal.player.fullName}</strong> es de{' '}
                 <strong className="text-amber-400">{substitutionModal.player.grade}º Año</strong>.
-                Para no quebrar la regla oficial 2-2-2, el alumno sustituto debe ser obligatoriamente del mismo grado.
+                Para no violar la regla 2-2-2, el nuevo alumno debe ser forzosamente de ese mismo grado.
               </p>
             </div>
 
@@ -820,7 +918,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   value={subName}
                   onChange={(e) => setSubName(e.target.value)}
                   placeholder="Ej. Andrés Navarro López"
-                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
                 />
               </div>
 
@@ -835,7 +933,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     value={subCurp}
                     onChange={(e) => setSubCurp(e.target.value)}
                     placeholder="MAT-2026-..."
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded text-white font-mono focus:outline-none focus:border-amber-400"
+                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -847,7 +945,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     type="text"
                     readOnly
                     value={`${substitutionModal.player.grade}º Año (Regla 2-2-2)`}
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-amber-500/40 rounded text-amber-400 font-bold cursor-not-allowed"
+                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-amber-500/40 rounded-lg text-amber-400 font-bold cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -860,7 +958,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <select
                     value={subPosition}
                     onChange={(e) => setSubPosition(e.target.value as PlayerPosition)}
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
                   >
                     <option value="Portero">Portero</option>
                     <option value="Defensa">Defensa</option>
@@ -877,13 +975,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     type="number"
                     value={subJersey}
                     onChange={(e) => setSubJersey(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded text-white font-mono focus:outline-none focus:border-amber-400"
+                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-amber-400"
                   />
                 </div>
-              </div>
-
-              <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
-                Se generará y validará automáticamente el comprobante digital escolar avalado por la coordinación.
               </div>
             </div>
 
@@ -898,7 +992,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmSubstitution}
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded transition-all shadow"
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-all shadow"
               >
                 Confirmar Sustitución
               </button>

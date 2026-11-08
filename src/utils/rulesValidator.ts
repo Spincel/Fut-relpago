@@ -80,6 +80,54 @@ export function evaluateTeamRules(team: Team): TournamentRulesCheck {
   };
 }
 
+export function isTeamNameTaken(teamName: string, existingTeams: Team[], currentTeamId?: string): boolean {
+  const normalized = teamName.trim().toLowerCase();
+  if (!normalized) return false;
+  return existingTeams.some(
+    (t) => t.id !== currentTeamId && t.name.trim().toLowerCase() === normalized
+  );
+}
+
+export function findDuplicatePlayersInOtherTeams(
+  newPlayerNamesOrIds: { name: string; curpOrId: string }[],
+  existingTeams: Team[],
+  currentTeamId?: string
+): { isDuplicate: boolean; message?: string } {
+  for (const newP of newPlayerNamesOrIds) {
+    const cleanName = newP.name.trim().toLowerCase();
+    const cleanId = newP.curpOrId.trim().toLowerCase();
+
+    if (!cleanName && !cleanId) continue;
+
+    for (const team of existingTeams) {
+      if (team.id === currentTeamId) continue;
+
+      for (const existingP of team.players) {
+        if (!existingP.isActive) continue;
+
+        const existingName = existingP.fullName.trim().toLowerCase();
+        const existingCurp = existingP.studentIdOrCurp.trim().toLowerCase();
+
+        if (cleanId && cleanId === existingCurp) {
+          return {
+            isDuplicate: true,
+            message: `La matrícula o CURP "${newP.curpOrId}" ya está registrada en el equipo "${team.name}" con el jugador ${existingP.fullName}. Un alumno no puede jugar en dos equipos.`,
+          };
+        }
+
+        if (cleanName && cleanName.length > 5 && cleanName === existingName) {
+          return {
+            isDuplicate: true,
+            message: `El jugador "${existingP.fullName}" ya fue registrado en el equipo "${team.name}". Un alumno no puede estar en dos equipos.`,
+          };
+        }
+      }
+    }
+  }
+
+  return { isDuplicate: false };
+}
+
 export function canSubstitutePlayer(
   outgoingPlayer: Player,
   incomingGrade: 1 | 2 | 3
@@ -92,3 +140,4 @@ export function canSubstitutePlayer(
   }
   return { allowed: true };
 }
+
