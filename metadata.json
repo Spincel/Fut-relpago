@@ -1,0 +1,6 @@
+{
+  "name": "Torneo Relámpago de Fútbol - Registro y Panel de Control",
+  "description": "Sistema de registro, altas, bajas, validación de documentos y panel de administración para el Torneo Relámpago de Fútbol con reglas de plantilla 2-2-2 por grado escolar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
