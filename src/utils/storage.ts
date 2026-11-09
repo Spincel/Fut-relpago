@@ -1,7 +1,8 @@
-import { Team } from '../types/tournament';
+import { Team, TournamentMatch } from '../types/tournament';
 import { INITIAL_TEAMS } from '../data/initialTeams';
 
-const STORAGE_KEY = 'torneo_relampago_teams_v1';
+const STORAGE_KEY = 'torneo_relampago_real_teams_v2';
+const FIXTURE_STORAGE_KEY = 'torneo_relampago_fixture_v2';
 
 export function loadTeamsFromStorage(): Team[] {
   if (typeof window === 'undefined') return INITIAL_TEAMS;
@@ -30,9 +31,31 @@ export function saveTeamsToStorage(teams: Team[]): void {
 
 export function resetTeamsToDefault(): Team[] {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_TEAMS));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
   }
-  return INITIAL_TEAMS;
+  return [];
+}
+
+export function loadFixtureFromStorage(): TournamentMatch[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(FIXTURE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Error loading fixture:', e);
+    return [];
+  }
+}
+
+export function saveFixtureToStorage(matches: TournamentMatch[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(FIXTURE_STORAGE_KEY, JSON.stringify(matches));
+  } catch (e) {
+    console.error('Error saving fixture:', e);
+  }
 }
 
 export function exportTeamsToCSV(teams: Team[]): string {

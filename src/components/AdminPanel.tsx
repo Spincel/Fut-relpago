@@ -1,1057 +1,879 @@
 import React, { useState } from 'react';
 import {
-  Users,
   ShieldCheck,
+  CheckCircle2,
   AlertTriangle,
-  FileCheck2,
-  UserPlus,
+  Users,
+  Calendar,
+  Shuffle,
   Trash2,
-  FileText,
-  Download,
-  RotateCcw,
-  Search,
-  CheckCircle,
-  XCircle,
-  Eye,
-  RefreshCw,
-  Award,
-  MessageCircle,
-  Bell,
-  Send,
   ExternalLink,
+  MessageCircle,
+  Download,
+  LogOut,
+  Sparkles,
+  Trophy,
+  UserPlus,
+  RefreshCw,
+  Search,
+  Check,
+  X,
 } from 'lucide-react';
-import { Team, Player, GradeYear, PlayerPosition } from '../types/tournament';
-import { evaluateTeamRules, canSubstitutePlayer } from '../utils/rulesValidator';
-import { exportTeamsToCSV, resetTeamsToDefault } from '../utils/storage';
-import { createMockCredential } from '../data/initialTeams';
-import { generateWhatsAppApprovalLink, generateWhatsAppObservationsLink } from '../utils/whatsappHelper';
+import { Team, Player, TournamentMatch, GradeYear, PlayerPosition } from '../types/tournament';
+import { evaluateTeamRules, findTeamDuplicatePlayers, canSubstitutePlayer } from '../utils/rulesValidator';
+import { generateWhatsAppApprovalLink, generateWhatsAppDuplicatePlayerLink, generateWhatsAppObservationsLink } from '../utils/whatsappHelper';
+import { exportTeamsToCSV } from '../utils/storage';
+import { SorteoLiveStudio } from './SorteoLiveStudio';
 
 interface AdminPanelProps {
   teams: Team[];
   onUpdateTeams: (updated: Team[]) => void;
-  onOpenDocumentModal: (player: Player, team: Team) => void;
-  onOpenGameSheetModal: (team: Team) => void;
-  onOpenNewRegistration: () => void;
-  newRegistrationsCount?: number;
-  onClearNewNotification?: () => void;
+  matches: TournamentMatch[];
+  onUpdateMatches: (matches: TournamentMatch[]) => void;
+  onLogoutAdmin: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   teams,
   onUpdateTeams,
-  onOpenDocumentModal,
-  onOpenGameSheetModal,
-  onOpenNewRegistration,
-  newRegistrationsCount = 0,
-  onClearNewNotification,
+  matches,
+  onUpdateMatches,
+  onLogoutAdmin,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'compliant' | 'irregular' | 'disqualified'>('all');
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(teams[0]?.id || null);
+  const [adminTab, setAdminTab] = useState<'validacion' | 'sorteo' | 'directorio'>('validacion');
+  const [tournamentFormat, setTournamentFormat] = useState<'eliminacion' | 'grupos'>('eliminacion');
+  const [isSorteoStudioOpen, setIsSorteoStudioOpen] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
 
-  // Substitution modal state
+  // Substitution modal
   const [substitutionModal, setSubstitutionModal] = useState<{
     isOpen: boolean;
-    teamId: string;
+    team: Team | null;
     player: Player | null;
   }>({
     isOpen: false,
-    teamId: '',
+    team: null,
     player: null,
   });
-
   const [subName, setSubName] = useState('');
-  const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
-  const [subCurp, setSubCurp] = useState('');
+  const [subGrade, setSubGrade] = useState<GradeYear>(2);
   const [subPosition, setSubPosition] = useState<PlayerPosition>('Medio');
   const [subJersey, setSubJersey] = useState('10');
-  const [subGrade, setSubGrade] = useState<GradeYear>(2);
+  const [subCurp, setSubCurp] = useState('');
   const [subError, setSubError] = useState<string | null>(null);
 
-  // Calculate summary metrics
-  const totalTeams = teams.length;
-  let compliantCount = 0;
-  let irregularCount = 0;
-  let pendingDocsCount = 0;
-  let totalActivePlayers = 0;
-  let grade3Total = 0;
-  let grade2Total = 0;
-  let grade1Total = 0;
+  // Metrics
+  const approvedTeams = teams.filter((t) => t.status === 'approved');
+  const pendingTeams = teams.filter((t) => t.status !== 'approved' && t.status !== 'disqualified');
 
-  teams.forEach((t) => {
-    const check = evaluateTeamRules(t);
-    if (check.isFullyCompliant) compliantCount++;
-    if (!check.isGradeDistributionValid || !check.isTotalCountValid) irregularCount++;
-    pendingDocsCount += check.pendingDocumentsCount;
-
-    t.players.forEach((p) => {
-      if (p.isActive) {
-        totalActivePlayers++;
-        if (p.grade === 3) grade3Total++;
-        if (p.grade === 2) grade2Total++;
-        if (p.grade === 1) grade1Total++;
+  // Handle Team Authorization
+  const handleApproveTeam = (teamId: string) => {
+    const updated = teams.map((t) => {
+      if (t.id === teamId) {
+        return {
+          ...t,
+          status: 'approved' as const,
+          players: t.players.map((p) => ({
+            ...p,
+            document: {
+              ...(p.document || {}),
+              status: 'approved' as const,
+              reviewedAt: new Date().toISOString(),
+              reviewedBy: 'Axel Javier González Salas',
+            },
+          })),
+          updatedAt: new Date().toISOString(),
+        };
       }
+      return t;
     });
-  });
-
-  // Filtered teams list
-  const filteredTeams = teams.filter((t) => {
-    const matchesSearch =
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.folio.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.captain.fullName.toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (!matchesSearch) return false;
-
-    const check = evaluateTeamRules(t);
-    if (filterStatus === 'compliant') return check.isFullyCompliant;
-    if (filterStatus === 'irregular') return !check.isFullyCompliant && t.status !== 'disqualified';
-    if (filterStatus === 'disqualified') return t.status === 'disqualified';
-    return true;
-  });
-
-  const activeSelectedTeam = teams.find((t) => t.id === selectedTeamId) || filteredTeams[0] || null;
-
-  // 1-Click Complete Validation for Team (Axel's shortcut)
-  const handleValidateEntireTeam = (team: Team) => {
-    const updatedPlayers = team.players.map((p) => ({
-      ...p,
-      document: {
-        ...(p.document || {}),
-        status: 'approved' as const,
-        rejectionReason: undefined,
-        reviewedAt: new Date().toISOString(),
-        reviewedBy: 'Axel Javier González Salas',
-      },
-    }));
-
-    const updated = teams.map((t) =>
-      t.id === team.id
-        ? {
-            ...t,
-            status: 'approved' as const,
-            players: updatedPlayers,
-            updatedAt: new Date().toISOString(),
-            notes: `${t.notes || ''} | Validado al 100% por Axel Javier González Salas.`,
-          }
-        : t
-    );
-
-    onUpdateTeams(updated);
-
-    // Prompt Axel to send WhatsApp confirmation
-    const waLink = generateWhatsAppApprovalLink({ ...team, players: updatedPlayers, status: 'approved' });
-    if (window.confirm(`¡Equipo "${team.name}" validado con éxito! 🏆\n\n¿Deseas abrir WhatsApp ahora para enviarle la confirmación al capitán (${team.captain.phone})?`)) {
-      window.open(waLink, '_blank');
-    }
-  };
-
-  // Actions for teams (Altas / Bajas / Reactivación)
-  const handleDisqualifyTeam = (teamId: string) => {
-    const reason = window.prompt(
-      'Motivo de la baja o descalificación del equipo (ej. "Incumplimiento de bases", "Baja voluntaria"):'
-    );
-    if (reason === null) return;
-
-    const updated = teams.map((t) =>
-      t.id === teamId
-        ? {
-            ...t,
-            status: 'disqualified' as const,
-            disqualificationReason: reason || 'Baja administrativa por mesa directiva.',
-            updatedAt: new Date().toISOString(),
-          }
-        : t
-    );
     onUpdateTeams(updated);
   };
 
-  const handleReactivateTeam = (teamId: string) => {
-    const updated = teams.map((t) =>
-      t.id === teamId
-        ? {
-            ...t,
-            status: 'approved' as const,
-            disqualificationReason: undefined,
-            updatedAt: new Date().toISOString(),
-          }
-        : t
-    );
-    onUpdateTeams(updated);
-  };
-
-  const handleDeleteTeam = (team: Team) => {
-    setTeamToDelete(team);
-  };
-
-  const handleConfirmDeleteTeam = () => {
+  // Handle Delete Team
+  const handleConfirmDelete = () => {
     if (!teamToDelete) return;
     const updated = teams.filter((t) => t.id !== teamToDelete.id);
     onUpdateTeams(updated);
-    if (selectedTeamId === teamToDelete.id) {
-      setSelectedTeamId(updated[0]?.id || null);
-    }
     setTeamToDelete(null);
   };
 
-  // Player substitution preserving Grade
-  const handleOpenSubstitution = (teamId: string, player: Player) => {
-    setSubstitutionModal({
-      isOpen: true,
-      teamId,
-      player,
-    });
-    setSubGrade(player.grade);
-    setSubName('');
-    setSubCurp('');
-    setSubPosition(player.position || 'Delantero');
-    setSubJersey(String(player.jerseyNumber || 10));
-    setSubError(null);
-  };
-
+  // Handle Substitution
   const handleConfirmSubstitution = () => {
-    if (!substitutionModal.player) return;
-    const { player, teamId } = substitutionModal;
-
-    const subCheck = canSubstitutePlayer(player, subGrade);
-    if (!subCheck.allowed) {
-      setSubError(subCheck.reason || 'Grado no permitido');
+    if (!substitutionModal.team || !substitutionModal.player) return;
+    if (!subName.trim()) {
+      setSubError('Debes ingresar el nombre del nuevo jugador.');
       return;
     }
 
-    if (!subName.trim() || !subCurp.trim()) {
-      setSubError('Completa el nombre y la matrícula del alumno sustituto.');
+    const check = canSubstitutePlayer(substitutionModal.player, subGrade);
+    if (!check.allowed) {
+      setSubError(check.reason || 'Sustitución no permitida');
       return;
     }
-
-    const newDocUrl = createMockCredential(subName.trim(), subGrade, subCurp.trim());
 
     const newPlayer: Player = {
-      id: `p-${Date.now()}`,
+      id: `sub-${Date.now()}`,
       fullName: subName.trim(),
       grade: subGrade,
-      studentIdOrCurp: subCurp.trim(),
       position: subPosition,
-      jerseyNumber: parseInt(subJersey, 10) || 10,
+      jerseyNumber: subJersey ? parseInt(subJersey, 10) : undefined,
+      studentIdOrCurp: subCurp.trim() || undefined,
       isActive: true,
       document: {
-        id: `doc-${Date.now()}`,
-        name: `credencial_sustituto_${subGrade}ano.svg`,
-        type: 'credencial',
-        fileUrl: newDocUrl,
         status: 'approved',
-        uploadedAt: new Date().toISOString(),
         reviewedAt: new Date().toISOString(),
         reviewedBy: 'Axel Javier González Salas',
       },
     };
 
     const updated = teams.map((t) => {
-      if (t.id === teamId) {
-        const updatedPlayers = t.players.map((p) =>
-          p.id === player.id
-            ? { ...p, isActive: false, deactivationReason: `Sustituido por ${subName.trim()} (${subGrade}º Año)` }
-            : p
-        );
+      if (t.id === substitutionModal.team?.id) {
         return {
           ...t,
-          players: [...updatedPlayers, newPlayer],
+          players: t.players.map((p) =>
+            p.id === substitutionModal.player?.id
+              ? { ...p, isActive: false, deactivationReason: `Sustituido por ${subName.trim()}` }
+              : p
+          ).concat(newPlayer),
           updatedAt: new Date().toISOString(),
-          notes: `${t.notes || ''} | Sustitución: ${player.fullName} reemplazado por ${subName.trim()} (${subGrade}º Año).`,
         };
       }
       return t;
     });
 
     onUpdateTeams(updated);
-    setSubstitutionModal({ isOpen: false, teamId: '', player: null });
+    setSubstitutionModal({ isOpen: false, team: null, player: null });
+    setSubName('');
+    setSubCurp('');
+    setSubError(null);
   };
 
-  const handleQuickApproveDoc = (teamId: string, playerId: string) => {
-    const updated = teams.map((t) => {
-      if (t.id === teamId) {
-        const updatedPlayers = t.players.map((p) =>
-          p.id === playerId
-            ? {
-                ...p,
-                document: {
-                  ...p.document,
-                  status: 'approved' as const,
-                  rejectionReason: undefined,
-                  reviewedAt: new Date().toISOString(),
-                  reviewedBy: 'Axel Javier González Salas',
-                },
-              }
-            : p
-        );
-        return { ...t, players: updatedPlayers, updatedAt: new Date().toISOString() };
+  // Handle Match Score Update
+  const handleScoreChange = (matchId: string, scoreA: number, scoreB: number) => {
+    const updated = matches.map((m) => {
+      if (m.id === matchId) {
+        const winner = scoreA > scoreB ? m.teamAId : scoreB > scoreA ? m.teamBId : undefined;
+        return {
+          ...m,
+          scoreA,
+          scoreB,
+          status: 'finalizado' as const,
+          winnerTeamId: winner,
+        };
       }
-      return t;
+      return m;
     });
-    onUpdateTeams(updated);
-  };
-
-  const handleDownloadCSV = () => {
-    const csvContent = exportTeamsToCSV(teams);
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `equipos_torneo_relampago_axel_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('¿Restablecer equipos iniciales de prueba?')) {
-      const reset = resetTeamsToDefault();
-      onUpdateTeams(reset);
-      setSelectedTeamId(reset[0]?.id || null);
-    }
+    onUpdateMatches(updated);
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="min-h-full bg-slate-950 text-slate-100 pb-16">
       
-      {/* New Registrations Alert Banner for Axel */}
-      {newRegistrationsCount > 0 && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 font-bold flex flex-wrap items-center justify-between gap-4 shadow-xl shadow-amber-500/20 animate-bounce-once">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center">
-              <Bell className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <span className="text-sm sm:text-base font-black uppercase tracking-tight block">
-                ¡Axel, tienes {newRegistrationsCount} nuevo(s) equipo(s) registrado(s)!
-              </span>
-              <span className="text-xs text-slate-900 font-medium">
-                Revisa que cumplan la regla 2-2-2, valida sus documentos y confírmales por WhatsApp.
-              </span>
-            </div>
-          </div>
-
-          {onClearNewNotification && (
-            <button
-              onClick={onClearNewNotification}
-              className="min-h-[40px] px-3.5 py-1.5 bg-slate-950 text-white rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors shrink-0"
-            >
-              Marcar como Visto
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Organizer Header Profile */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border-2 border-amber-500/40 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl font-bold">
-            ⚽
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                Panel Oficial del Organizador (14 Años)
-              </span>
-              <span className="text-slate-500">·</span>
-              <span className="text-xs text-emerald-400 font-bold">Mesa de Control Activa</span>
-            </div>
-            <h2 className="text-2xl font-black font-display text-white mt-0.5">
-              Axel Javier González Salas
-            </h2>
-            <p className="text-xs text-slate-300">
-              Torneo Relámpago de Fútbol · Jueves 12 de Noviembre · Validador de Regla 2-2-2
-            </p>
-          </div>
-        </div>
-
-        {/* Global Action Buttons */}
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={onOpenNewRegistration}
-            className="min-h-[44px] px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4 text-slate-950" />
-            <span>+ Alta Presencial</span>
-          </button>
-          <button
-            onClick={handleDownloadCSV}
-            className="min-h-[44px] px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
-            title="Descargar lista de equipos en Excel / CSV"
-          >
-            <Download className="w-4 h-4 text-amber-400" />
-            <span>Descargar Excel</span>
-          </button>
-          <button
-            onClick={handleResetData}
-            className="min-w-[44px] min-h-[44px] p-2.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 border border-slate-700 transition-colors flex items-center justify-center"
-            title="Restablecer equipos de prueba"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Simple Summary Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span className="font-bold">Equipos Totales</span>
-            <Users className="w-4 h-4 text-amber-400" />
-          </div>
-          <span className="text-3xl font-black font-mono text-white tabular-nums">
-            {totalTeams}
-          </span>
-          <span className="text-xs text-slate-400 block mt-1">Padrón oficial</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span className="font-bold">Cumplen Regla 2-2-2</span>
-            <CheckCircle className="w-4 h-4 text-emerald-400" />
-          </div>
-          <span className="text-3xl font-black font-mono text-emerald-400 tabular-nums">
-            {compliantCount}
-          </span>
-          <span className="text-xs text-slate-400 block mt-1">Listos para el Jueves 12</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span className="font-bold">Por Corregir / Irregulares</span>
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
-          </div>
-          <span className="text-3xl font-black font-mono text-amber-400 tabular-nums">
-            {irregularCount}
-          </span>
-          <span className="text-xs text-slate-400 block mt-1">Faltan o sobran de algún grado</span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
-            <span className="font-bold">Credenciales Pendientes</span>
-            <FileCheck2 className="w-4 h-4 text-sky-400" />
-          </div>
-          <span className="text-3xl font-black font-mono text-sky-400 tabular-nums">
-            {pendingDocsCount}
-          </span>
-          <span className="text-xs text-slate-400 block mt-1">Por cotejar con Axel</span>
-        </div>
-      </div>
-
-      {/* Main Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* Left: Team Selector List */}
-        <div className="lg:col-span-5 bg-slate-900 rounded-2xl border border-slate-800 p-4 space-y-4 shadow-lg">
+      {/* =========================================================
+          TOP ADMIN EXCLUSIVE APP BAR
+          ========================================================= */}
+      <div className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-amber-500/30 shadow-lg">
+        <div className="max-w-5xl mx-auto px-3.5 sm:px-6 py-2.5 flex items-center justify-between gap-3">
           
-          <div className="flex items-center justify-between">
-            <h3 className="font-display font-black text-base text-white">
-              Lista de Equipos ({filteredTeams.length})
-            </h3>
-            <span className="text-xs text-slate-400">Selecciona uno para gestionar</span>
+          {/* Admin Identity */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-display font-black text-xs sm:text-sm text-white truncate">
+                  Panel de Control Organizador
+                </span>
+                <span className="text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded border border-amber-500/30 shrink-0">
+                  Axel Javier G. S.
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 block -mt-0.5">
+                {teams.length} Equipos ({approvedTeams.length} Aprobados · {pendingTeams.length} Pendientes)
+              </span>
+            </div>
           </div>
 
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por equipo, folio o capitán..."
-              className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
-            />
-          </div>
-
-          {/* Filter Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl text-xs font-semibold">
-            <button
-              onClick={() => setFilterStatus('all')}
-              className={`flex-1 min-h-[36px] py-1.5 px-1 sm:px-2 text-[11px] sm:text-xs rounded-lg transition-colors ${
-                filterStatus === 'all'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Todos
-            </button>
-            <button
-              onClick={() => setFilterStatus('compliant')}
-              className={`flex-1 min-h-[36px] py-1.5 px-1 sm:px-2 text-[11px] sm:text-xs rounded-lg transition-colors ${
-                filterStatus === 'compliant'
-                  ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Válidos
-            </button>
-            <button
-              onClick={() => setFilterStatus('irregular')}
-              className={`flex-1 min-h-[36px] py-1.5 px-1 sm:px-2 text-[11px] sm:text-xs rounded-lg transition-colors ${
-                filterStatus === 'irregular'
-                  ? 'bg-amber-950/80 text-amber-300 border border-amber-800'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Observados
-            </button>
-            <button
-              onClick={() => setFilterStatus('disqualified')}
-              className={`flex-1 min-h-[36px] py-1.5 px-1 sm:px-2 text-[11px] sm:text-xs rounded-lg transition-colors ${
-                filterStatus === 'disqualified'
-                  ? 'bg-rose-950/80 text-rose-300 border border-rose-800'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Bajas
-            </button>
-          </div>
-
-          {/* Teams list */}
-          <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
-            {filteredTeams.map((team) => {
-              const check = evaluateTeamRules(team);
-              const isSelected = selectedTeamId === team.id;
-
-              return (
-                <div
-                  key={team.id}
-                  onClick={() => setSelectedTeamId(team.id)}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-slate-950 border-amber-500 shadow-md ring-1 ring-amber-500/40'
-                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-mono text-amber-400 font-bold">{team.folio}</span>
-                    
-                    {team.status === 'disqualified' ? (
-                      <span className="text-[11px] text-rose-400 font-bold flex items-center gap-1">
-                        <XCircle className="w-3.5 h-3.5" />
-                        Baja
-                      </span>
-                    ) : check.isFullyCompliant ? (
-                      <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        ✓ Regla 2-2-2 Válida
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        Revisar Composición
-                      </span>
-                    )}
-                  </div>
-
-                  <h4 className="text-base font-bold text-white">
-                    {team.name}
-                  </h4>
-
-                  <div className="mt-1 text-xs text-slate-400 flex items-center justify-between">
-                    <span>Capitán: <strong className="text-slate-300">{team.captain.fullName}</strong></span>
-                    <span className="font-mono text-slate-300 font-bold">
-                      {check.totalPlayers}/6 Jugadores
-                    </span>
-                  </div>
-
-                  {/* 2-2-2 mini row */}
-                  <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
-                    <span className={check.grade3Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
-                      3º: {check.grade3Count}/2
-                    </span>
-                    <span className={check.grade2Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
-                      2º: {check.grade2Count}/2
-                    </span>
-                    <span className={check.grade1Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-bold'}>
-                      1º: {check.grade1Count}/2
-                    </span>
-                  </div>
-
-                  {/* Delete team from list */}
-                  <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-end">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTeam(team);
-                      }}
-                      className="min-h-[40px] px-3 py-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
-                      aria-label={`Eliminar equipo ${team.name}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Eliminar equipo</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {/* Logout / Exit Admin Portal */}
+          <button
+            onClick={onLogoutAdmin}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shrink-0"
+            title="Cerrar sesión de administrador"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Cerrar Sesión</span>
+          </button>
 
         </div>
 
-        {/* Right: Team Management & WhatsApp Actions */}
-        <div className="lg:col-span-7 bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-6 shadow-lg">
-          {activeSelectedTeam ? (
-            (() => {
-              const team = activeSelectedTeam;
-              const check = evaluateTeamRules(team);
-              const activePlayers = team.players.filter((p) => p.isActive);
-              const inactivePlayers = team.players.filter((p) => !p.isActive);
+        {/* Admin Navigation Pills */}
+        <div className="max-w-5xl mx-auto px-3.5 sm:px-6 pb-2 pt-1 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setAdminTab('validacion')}
+            className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              adminTab === 'validacion'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Validar y Autorizar</span>
+            {pendingTeams.length > 0 && (
+              <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-mono flex items-center justify-center">
+                {pendingTeams.length}
+              </span>
+            )}
+          </button>
 
-              const waApprovalLink = generateWhatsAppApprovalLink(team);
-              const waObservationsLink = generateWhatsAppObservationsLink(team, check.issues);
+          <button
+            onClick={() => setAdminTab('sorteo')}
+            className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              adminTab === 'sorteo'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            <Shuffle className="w-3.5 h-3.5" />
+            <span>Sorteo y Formato</span>
+            <span className="text-[10px] font-mono text-amber-300 bg-amber-500/10 px-1 rounded">
+              {approvedTeams.length} listos
+            </span>
+          </button>
 
-              return (
-                <div className="space-y-6">
-                  
-                  {/* Team Identity Banner */}
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-amber-400 font-bold">{team.folio}</span>
-                        <span className="text-slate-500">·</span>
-                        <span className="text-xs text-slate-400">
-                          {team.registeredBy === 'admin_desk' ? 'Inscrito en mesa presencial' : 'Inscripción vía web'}
-                        </span>
-                      </div>
-                      <h2 className="text-2xl sm:text-3xl font-black font-display text-white mt-1">
-                        {team.name}
-                      </h2>
-                      <span className="text-xs text-slate-300">
-                        Uniforme / Color: <strong className="text-amber-400">{team.uniformColor}</strong>
-                      </span>
-                    </div>
+          <button
+            onClick={() => setAdminTab('directorio')}
+            className={`py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              adminTab === 'directorio'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Equipos y Bajas/Altas ({teams.length})</span>
+          </button>
+        </div>
+      </div>
 
-                    {/* Operational Top Buttons */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        onClick={() => onOpenGameSheetModal(team)}
-                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5 shadow"
-                        title="Ver e imprimir cédula oficial de partido"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span>Imprimir Cédula</span>
-                      </button>
+      <div className="max-w-5xl mx-auto px-3.5 sm:px-6 pt-4 space-y-4">
 
-                      {team.status === 'disqualified' ? (
-                        <button
-                          onClick={() => handleReactivateTeam(team.id)}
-                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-1"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                          <span>Reactivar</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleDisqualifyTeam(team.id)}
-                          className="px-3.5 py-2 bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1"
-                          title="Dar de baja o descalificar equipo"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span>Dar de Baja</span>
-                        </button>
-                      )}
+        {/* =========================================================
+            TAB 1: VALIDACIÓN, COTEJO DE BASES & WHATSAPP
+            ========================================================= */}
+        {adminTab === 'validacion' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display font-black text-sm sm:text-base text-white">
+                  Revisión y Autorización de Equipos
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Detecta automáticamente si un jugador fue registrado en dos equipos y envía notificaciones directas por WhatsApp.
+                </p>
+              </div>
+            </div>
 
-                      <button
-                        onClick={() => handleDeleteTeam(team)}
-                        className="min-h-[44px] px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
-                        title="Eliminar este equipo permanentemente"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Eliminar equipo</span>
-                      </button>
-                    </div>
-                  </div>
+            {teams.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
+                <Users className="w-10 h-10 text-slate-600 mx-auto" />
+                <h4 className="font-bold text-white text-sm">No hay registros pendientes</h4>
+                <p className="text-xs text-slate-400">
+                  Los equipos que se registren desde la app aparecerán aquí para que los autorices.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {teams.map((team) => {
+                  const check = evaluateTeamRules(team);
+                  const duplicates = findTeamDuplicatePlayers(team, teams);
+                  const isApproved = team.status === 'approved';
 
-                  {/* Primary WhatsApp Direct Communication Card */}
-                  <div className="p-4 rounded-2xl bg-emerald-950/40 border-2 border-emerald-600/50 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <MessageCircle className="w-5 h-5 text-emerald-400" />
-                        <span className="font-bold text-sm text-emerald-300">
-                          Notificación Oficial por WhatsApp al Capitán
-                        </span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-slate-300">
-                        {team.captain.phone}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-slate-300">
-                      Axel, con un solo clic puedes abrir WhatsApp con el mensaje oficial redactado
-                      para enviárselo directamente a <strong>{team.captain.fullName}</strong>:
-                    </p>
-
-                    <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                      {check.isFullyCompliant ? (
-                        <a
-                          href={waApprovalLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-2"
-                        >
-                          <Send className="w-4 h-4" />
-                          <span>Enviar WhatsApp de EQUIPO VALIDADO ✓</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      ) : (
-                        <a
-                          href={waObservationsLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-2"
-                        >
-                          <Send className="w-4 h-4 text-slate-950" />
-                          <span>Enviar WhatsApp con OBSERVACIONES DE REGLAS ⚠️</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-
-                      {!check.areAllDocumentsApproved && (
-                        <button
-                          onClick={() => handleValidateEntireTeam(team)}
-                          className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          <span>Aprobar Todos los Documentos de este Equipo</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Rules Diagnostic Box */}
-                  <div
-                    className={`p-4 rounded-xl border text-xs space-y-2 ${
-                      check.isFullyCompliant
-                        ? 'bg-emerald-950/25 border-emerald-800 text-emerald-200'
-                        : 'bg-amber-950/25 border-amber-800 text-amber-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between font-bold text-sm">
-                      <span className="flex items-center gap-2">
-                        {check.isFullyCompliant ? (
-                          <CheckCircle className="w-5 h-5 text-emerald-400" />
-                        ) : (
-                          <AlertTriangle className="w-5 h-5 text-amber-400" />
-                        )}
-                        <span>
-                          {check.isFullyCompliant
-                            ? '¡Plantilla perfecta! Cumple 100% con las bases oficiales 2-2-2.'
-                            : 'Observaciones de Reglas Oficiales:'}
-                        </span>
-                      </span>
-
-                      <div className="flex items-center gap-3 font-mono text-xs">
-                        <span>3º: {check.grade3Count}/2</span>
-                        <span>2º: {check.grade2Count}/2</span>
-                        <span>1º: {check.grade1Count}/2</span>
-                      </div>
-                    </div>
-
-                    {check.issues.length > 0 && (
-                      <div className="mt-2 space-y-1 text-slate-200">
-                        {check.issues.map((issue, idx) => (
-                          <p key={idx} className="flex items-start gap-1.5">
-                            <span className="text-amber-400 font-bold">·</span>
-                            <span>{issue}</span>
-                          </p>
-                        ))}
-                      </div>
-                    )}
-
-                    {team.disqualificationReason && (
-                      <div className="mt-2 p-2 rounded bg-rose-950/80 border border-rose-800 text-rose-200">
-                        <strong>Motivo de baja:</strong> {team.disqualificationReason}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Captain Contact Information */}
-                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs break-words">
-                    <div>
-                      <span className="text-slate-400 block font-semibold">Capitán:</span>
-                      <strong className="text-white text-sm">{team.captain.fullName}</strong>
-                      <span className="text-slate-400 block">{team.captain.groupOrClass}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-semibold">WhatsApp de contacto:</span>
-                      <strong className="text-emerald-400 font-mono text-sm">{team.captain.phone}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-semibold">Correo:</span>
-                      <strong className="text-slate-200">{team.captain.email}</strong>
-                    </div>
-                  </div>
-
-                  {/* Active 6 Players Roster */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                        <Users className="w-4 h-4 text-amber-400" />
-                        <span>Plantilla de Jugadores ({activePlayers.length} / 6)</span>
-                      </h4>
-                      <span className="text-xs text-slate-400">
-                        Haz clic en "Ver Doc" para inspeccionar credencial con zoom
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      {activePlayers.map((player) => (
-                        <div
-                          key={player.id}
-                          className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 font-mono font-bold text-white flex items-center justify-center">
-                              #{player.jerseyNumber}
+                  return (
+                    <div
+                      key={team.id}
+                      className={`p-3.5 sm:p-4 rounded-2xl bg-slate-900/90 border transition-all space-y-3 shadow-lg ${
+                        duplicates.length > 0
+                          ? 'border-red-500/60 bg-red-950/10'
+                          : isApproved
+                          ? 'border-emerald-500/40'
+                          : 'border-amber-500/40'
+                      }`}
+                    >
+                      {/* Header Row */}
+                      <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                              {team.folio}
                             </span>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-white text-sm">
-                                  {player.fullName}
-                                </span>
-                                <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
-                                  {player.grade}º Año
-                                </span>
-                                <span className="text-slate-400 font-medium">
-                                  {player.position}
-                                </span>
-                              </div>
-                              <span className="text-slate-400 font-mono text-[11px] block mt-0.5">
-                                Matrícula: {player.studentIdOrCurp}
-                              </span>
-                            </div>
+                            <h4 className="font-display font-black text-sm sm:text-base text-white leading-tight">
+                              {team.name}
+                            </h4>
+                            <span className="text-[10px] text-slate-300 bg-slate-950 px-2 py-0.2 rounded-full border border-slate-800">
+                              Uniforme: {team.uniformColor}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Capitán: <strong className="text-white">{team.captain.fullName}</strong> · WhatsApp:{' '}
+                            <strong className="text-emerald-400 font-mono">{team.captain.phone}</strong>
+                          </p>
+                        </div>
+
+                        {/* Status Badge */}
+                        {isApproved ? (
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1 shrink-0">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Autorizado</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold flex items-center gap-1 shrink-0">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            <span>Por Autorizar</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* DUPLICATE PLAYERS ALERT (Requisito fundamental solicitado por el usuario) */}
+                      {duplicates.length > 0 && (
+                        <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/60 space-y-2 animate-in zoom-in-95">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
+                            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                            <span>¡ALERTA DE JUGADOR DUPLICADO DETECTADA!</span>
+                          </div>
+                          <div className="space-y-1 text-xs text-slate-200">
+                            {duplicates.map((d, i) => (
+                              <p key={i} className="leading-snug">
+                                El jugador <strong className="text-white">"{d.player.fullName}"</strong> ({d.player.grade}º año) también está registrado en el equipo <strong className="text-amber-300">"{d.otherTeam.name}"</strong> (Folio: {d.otherTeam.folio}). La regla oficial prohíbe que un alumno juegue en dos equipos.
+                              </p>
+                            ))}
                           </div>
 
-                          {/* Document Status & Actions */}
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => onOpenDocumentModal(player, team)}
-                              className={`min-h-[40px] px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors border ${
-                                player.document?.status === 'approved'
-                                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800 hover:bg-emerald-900/60'
-                                  : player.document?.status === 'rejected'
-                                  ? 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900/60'
-                                  : 'bg-amber-950/60 text-amber-300 border-amber-800 hover:bg-amber-900/60'
-                              }`}
-                              title="Inspeccionar credencial con zoom"
+                          {/* WhatsApp button to notify duplicate to captain */}
+                          <div className="pt-1">
+                            <a
+                              href={generateWhatsAppDuplicatePlayerLink(
+                                team,
+                                duplicates[0].player.fullName,
+                                duplicates[0].otherTeam.name,
+                                duplicates[0].player.grade
+                              )}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow cursor-pointer active:scale-95 transition-all"
                             >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>
-                                {player.document?.status === 'approved'
-                                  ? 'Doc. Aprobado'
-                                  : player.document?.status === 'rejected'
-                                  ? 'Doc. Rechazado'
-                                  : 'Doc. Pendiente'}
-                              </span>
-                            </button>
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>Notificar por WhatsApp a Capitán (Jugador Duplicado)</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        </div>
+                      )}
 
-                            {player.document?.status !== 'approved' && (
-                              <button
-                                onClick={() => handleQuickApproveDoc(team.id, player.id)}
-                                className="min-w-[40px] min-h-[40px] p-2 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
-                                title="Aprobar inmediatamente documento"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
-                            )}
+                      {/* Plantilla 2-2-2 Summary */}
+                      <div className="grid grid-cols-3 gap-1 text-center text-xs">
+                        <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 block">3er Año (2)</span>
+                          <strong className={check.grade3Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-black'}>
+                            {check.grade3Count}/2 Jugadores
+                          </strong>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 block">2do Año (2)</span>
+                          <strong className={check.grade2Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-black'}>
+                            {check.grade2Count}/2 Jugadores
+                          </strong>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800">
+                          <span className="text-[10px] text-slate-400 block">1er Año (2)</span>
+                          <strong className={check.grade1Count === 2 ? 'text-emerald-400' : 'text-amber-400 font-black'}>
+                            {check.grade1Count}/2 Jugadores
+                          </strong>
+                        </div>
+                      </div>
 
+                      {/* Players Compact List */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs">
+                        {team.players.filter((p) => p.isActive).map((p) => (
+                          <div key={p.id} className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
+                            <span className="truncate text-slate-200 text-[11px]" title={p.fullName}>
+                              {p.fullName}
+                            </span>
+                            <span className={`text-[9px] font-bold px-1 py-0.2 rounded shrink-0 ${
+                              p.grade === 3
+                                ? 'bg-amber-500/20 text-amber-300'
+                                : p.grade === 2
+                                ? 'bg-blue-500/20 text-blue-300'
+                                : 'bg-purple-500/20 text-purple-300'
+                            }`}>
+                              {p.grade}º
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Actions Toolbar for Axel */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+                        <div className="flex items-center gap-2">
+                          {!isApproved && (
                             <button
-                              onClick={() => handleOpenSubstitution(team.id, player)}
-                              className="min-h-[40px] px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium border border-slate-700 transition-colors flex items-center"
-                              title="Dar de baja y sustituir respetando el grado escolar"
+                              onClick={() => handleApproveTeam(team.id)}
+                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow flex items-center gap-1.5 cursor-pointer active:scale-95"
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Autorizar y Aprobar Equipo</span>
+                            </button>
+                          )}
+
+                          {/* WhatsApp pre-designed message: Approved team waiting for draw */}
+                          <a
+                            href={generateWhatsAppApprovalLink(team)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-2 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95"
+                            title="Enviar mensaje prediseñado: Tu equipo quedó registrado, espera el sorteo..."
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>WhatsApp: Equipo Aprobado (Espera Sorteo)</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+
+                        {/* Delete registration */}
+                        <button
+                          onClick={() => setTeamToDelete(team)}
+                          className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                          title="Eliminar este equipo"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================
+            TAB 2: GESTIÓN DEL TORNEO, FORMATO & SORTEO EN VIVO
+            ========================================================= */}
+        {adminTab === 'sorteo' && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-slate-900/90 border border-slate-800 p-4 sm:p-5 space-y-4">
+              <div>
+                <h3 className="font-display font-black text-base text-white">
+                  Configuración del Torneo y Sorteo Oficial
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Selecciona la modalidad de juego. Hay <strong className="text-amber-400">{approvedTeams.length} equipos autorizados</strong> listos para entrar al sorteo.
+                </p>
+              </div>
+
+              {/* Format selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setTournamentFormat('eliminacion')}
+                  className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                    tournamentFormat === 'eliminacion'
+                      ? 'bg-amber-500/15 border-amber-500 shadow-md ring-2 ring-amber-500/20'
+                      : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-display font-black text-sm text-white">
+                      ⚡ Eliminación Directa (Playoffs)
+                    </span>
+                    {tournamentFormat === 'eliminacion' && (
+                      <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Cruces directos: Cuartos de final, Semifinales y Gran Final. El equipo que pierde queda eliminado.
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setTournamentFormat('grupos')}
+                  className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                    tournamentFormat === 'grupos'
+                      ? 'bg-amber-500/15 border-amber-500 shadow-md ring-2 ring-amber-500/20'
+                      : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-display font-black text-sm text-white">
+                      🏆 Fase de Grupos
+                    </span>
+                    {tournamentFormat === 'grupos' && (
+                      <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Divide a los equipos en Grupo A y Grupo B (todos contra todos), y los líderes avanzan a la Gran Final.
+                  </p>
+                </button>
+              </div>
+
+              {/* Big Draw Studio Trigger */}
+              <div className="pt-2">
+                <button
+                  disabled={approvedTeams.length < 2}
+                  onClick={() => setIsSorteoStudioOpen(true)}
+                  className={`w-full py-4 rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-3 cursor-pointer active:scale-95 transition-all ${
+                    approvedTeams.length >= 2
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-amber-500/25'
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  <Sparkles className="w-5 h-5 text-slate-950" />
+                  <span>
+                    {approvedTeams.length >= 2
+                      ? '🎬 ABRIR ESTUDIO DE SORTEO EN VIVO (GRABAR PANTALLA)'
+                      : 'SE REQUIEREN AL MENOS 2 EQUIPOS APROBADOS PARA EL SORTEO'}
+                  </span>
+                </button>
+                <p className="text-[11px] text-slate-400 text-center mt-2">
+                  Genera la tómbola y las animaciones de cruces en pantalla completa para que puedas grabar video con tu teléfono.
+                </p>
+              </div>
+            </div>
+
+            {/* Current Matches & Score Input */}
+            {matches.length > 0 && (
+              <div className="rounded-2xl bg-slate-900/90 border border-slate-800 p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <h4 className="font-display font-black text-sm text-white">
+                    Rol Oficial Generado ({matches.length} Partidos)
+                  </h4>
+                  <button
+                    onClick={() => onUpdateMatches([])}
+                    className="text-xs text-rose-400 hover:underline cursor-pointer"
+                  >
+                    Borrar Rol Actual
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {matches.map((m) => {
+                    const teamA = teams.find((t) => t.id === m.teamAId);
+                    const teamB = teams.find((t) => t.id === m.teamBId);
+
+                    return (
+                      <div
+                        key={m.id}
+                        className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2"
+                      >
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span className="font-bold text-amber-400">
+                            {m.round} {m.groupName ? `· ${m.groupName}` : ''} · Partido #{m.matchNumber}
+                          </span>
+                          <span>{m.timeSlot} · {m.pitch}</span>
+                        </div>
+
+                        {/* Match & Score Input */}
+                        <div className="flex items-center justify-between gap-2 text-xs sm:text-sm font-bold">
+                          <div className="flex-1 text-right truncate">
+                            <span className="text-white block truncate">{teamA ? teamA.name : m.teamAId}</span>
+                            {teamA && <span className="text-[10px] text-slate-400 font-normal">{teamA.uniformColor}</span>}
+                          </div>
+
+                          {/* Score input fields */}
+                          <div className="flex items-center gap-1.5 shrink-0 px-2 py-1 bg-slate-900 rounded-lg border border-slate-700">
+                            <input
+                              type="number"
+                              min="0"
+                              max="30"
+                              defaultValue={m.scoreA ?? ''}
+                              placeholder="0"
+                              className="w-8 h-7 text-center font-mono font-black text-amber-400 bg-slate-950 rounded border border-slate-700 focus:outline-none"
+                              onBlur={(e) => {
+                                const valA = parseInt(e.target.value, 10);
+                                const valB = m.scoreB ?? 0;
+                                if (!isNaN(valA)) handleScoreChange(m.id, valA, valB);
+                              }}
+                            />
+                            <span className="text-slate-500 font-black">-</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="30"
+                              defaultValue={m.scoreB ?? ''}
+                              placeholder="0"
+                              className="w-8 h-7 text-center font-mono font-black text-amber-400 bg-slate-950 rounded border border-slate-700 focus:outline-none"
+                              onBlur={(e) => {
+                                const valB = parseInt(e.target.value, 10);
+                                const valA = m.scoreA ?? 0;
+                                if (!isNaN(valB)) handleScoreChange(m.id, valA, valB);
+                              }}
+                            />
+                          </div>
+
+                          <div className="flex-1 text-left truncate">
+                            <span className="text-white block truncate">{teamB ? teamB.name : m.teamBId}</span>
+                            {teamB && <span className="text-[10px] text-slate-400 font-normal">{teamB.uniformColor}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================
+            TAB 3: DIRECTORIO DE EQUIPOS, BAJAS/ALTAS Y EXPORTAR
+            ========================================================= */}
+        {adminTab === 'directorio' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="font-display font-black text-base text-white">
+                  Padrón Completo y Control de Plantillas
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Gestiona altas y bajas de jugadores respetando la regla oficial de 2-2-2.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  const csv = exportTeamsToCSV(teams);
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `Torneo_Relampago_Equipos_${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exportar Excel / CSV</span>
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {teams.map((team) => (
+                <div
+                  key={team.id}
+                  className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-amber-400">{team.folio}</span>
+                        <h4 className="font-bold text-white text-sm sm:text-base">{team.name}</h4>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Capitán: {team.captain.fullName} ({team.captain.phone}) · Uniforme: {team.uniformColor}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setTeamToDelete(team)}
+                      className="p-1.5 text-slate-500 hover:text-rose-400"
+                      title="Eliminar equipo"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Players with Substitution Button */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Jugadores Registrados (Bajas y Altas):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {team.players.map((player) => (
+                        <div
+                          key={player.id}
+                          className={`p-2 rounded-xl border flex items-center justify-between text-xs ${
+                            player.isActive
+                              ? 'bg-slate-950 border-slate-800'
+                              : 'bg-red-950/20 border-red-900/40 opacity-60'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="font-semibold text-white block truncate">
+                              {player.fullName}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {player.grade}º Año · {player.position || 'Jugador'} · {player.isActive ? 'Activo' : 'Baja'}
+                            </span>
+                          </div>
+
+                          {player.isActive && (
+                            <button
+                              onClick={() => {
+                                setSubstitutionModal({
+                                  isOpen: true,
+                                  team,
+                                  player,
+                                });
+                                setSubGrade(player.grade);
+                              }}
+                              className="px-2 py-1 text-[10px] font-bold text-amber-400 hover:bg-amber-500/10 rounded border border-amber-500/30 cursor-pointer active:scale-95 shrink-0"
                             >
                               Sustituir
                             </button>
-                          </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Substitution History */}
-                  {inactivePlayers.length > 0 && (
-                    <div className="pt-3 border-t border-slate-800 space-y-2">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                        Bajas y Sustituciones Previas:
-                      </span>
-                      {inactivePlayers.map((p) => (
-                        <div
-                          key={p.id}
-                          className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 text-xs text-slate-400 flex items-center justify-between"
-                        >
-                          <span className="line-through">{p.fullName} ({p.grade}º Año)</span>
-                          <span className="text-rose-400 text-[11px]">
-                            {p.deactivationReason || 'Baja de plantilla'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
                 </div>
-              );
-            })()
-          ) : (
-            <div className="p-12 text-center text-slate-400 text-sm">
-              Selecciona un equipo de la lista de la izquierda para comenzar a gestionarlo.
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
       </div>
 
-      {/* Substitution Modal */}
-      {substitutionModal.isOpen && substitutionModal.player && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
-            
-            <div className="border-b border-slate-800 pb-3">
-              <span className="text-xs font-mono text-amber-400 font-bold block">
-                Sustitución en Mesa de Control · Axel Javier
-              </span>
-              <h3 className="text-base font-bold text-white mt-1">
-                Sustituir Jugador de {substitutionModal.player.grade}º Año
-              </h3>
-              <p className="text-xs text-slate-300 mt-1">
-                El jugador saliente <strong>{substitutionModal.player.fullName}</strong> es de{' '}
-                <strong className="text-amber-400">{substitutionModal.player.grade}º Año</strong>.
-                Para no violar la regla 2-2-2, el nuevo alumno debe ser forzosamente de ese mismo grado.
+      {/* Sorteo Live Studio Modal */}
+      <SorteoLiveStudio
+        isOpen={isSorteoStudioOpen}
+        onClose={() => setIsSorteoStudioOpen(false)}
+        teams={approvedTeams}
+        format={tournamentFormat}
+        onPublishFixture={(newMatches) => {
+          onUpdateMatches(newMatches);
+        }}
+      />
+
+      {/* Confirmation Modal to Delete Team */}
+      {teamToDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in"
+        >
+          <div className="relative w-full max-w-md bg-slate-900 border border-rose-500/50 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-400 flex items-center justify-center mx-auto text-xl">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h4 className="font-display font-black text-lg text-white">
+                ¿Eliminar equipo definitivamente?
+              </h4>
+              <p className="text-xs text-slate-300">
+                Estás a punto de borrar al equipo <strong className="text-white">"{teamToDelete.name}"</strong> (Folio: {teamToDelete.folio}). Esta acción no se puede deshacer.
               </p>
             </div>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                onClick={() => setTeamToDelete(null)}
+                className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-xl shadow"
+              >
+                Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Substitution Modal (Baja de jugador y alta de sustituto de mismo grado) */}
+      {substitutionModal.isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in"
+        >
+          <div className="relative w-full max-w-md bg-slate-900 border border-amber-500/50 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span className="font-bold text-white text-sm">
+                Sustitución de Jugador
+              </span>
+              <button
+                onClick={() => setSubstitutionModal({ isOpen: false, team: null, player: null })}
+                className="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              Se dará de baja a <strong className="text-white">{substitutionModal.player?.fullName}</strong>. Para mantener la regla oficial 2-2-2, el sustituto debe ser obligatoriamente de <strong className="text-amber-400">{substitutionModal.player?.grade}º año</strong>.
+            </p>
 
             {subError && (
-              <div className="p-3 rounded-lg bg-rose-950/80 border border-rose-800 text-rose-200 text-xs">
+              <div className="p-2 rounded-xl bg-red-950/40 border border-red-500/50 text-xs text-red-300">
                 {subError}
               </div>
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nombre Completo del Nuevo Alumno *
-                </label>
+                <label className="block text-slate-400 mb-1 font-semibold">Nombre Completo del Sustituto *</label>
                 <input
                   type="text"
-                  required
                   value={subName}
                   onChange={(e) => setSubName(e.target.value)}
-                  placeholder="Ej. Andrés Navarro López"
-                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+                  placeholder="Ej. Luis Fernando Mora"
+                  className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Grado Escolar Obligatorio</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={`${substitutionModal.player?.grade}º Año de Secundaria`}
+                  className="w-full p-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-amber-400 font-bold"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Matrícula / CURP *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={subCurp}
-                    onChange={(e) => setSubCurp(e.target.value)}
-                    placeholder="MAT-2026-..."
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Grado Obligatorio
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${substitutionModal.player.grade}º Año (Regla 2-2-2)`}
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-amber-500/40 rounded-lg text-amber-400 font-bold cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Posición
-                  </label>
+                  <label className="block text-slate-400 mb-1 font-semibold">Posición</label>
                   <select
                     value={subPosition}
                     onChange={(e) => setSubPosition(e.target.value as PlayerPosition)}
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+                    className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
                   >
-                    <option value="Portero">Portero</option>
-                    <option value="Defensa">Defensa</option>
-                    <option value="Medio">Medio</option>
                     <option value="Delantero">Delantero</option>
+                    <option value="Medio">Medio</option>
+                    <option value="Defensa">Defensa</option>
+                    <option value="Portero">Portero</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Dorsal
-                  </label>
+                  <label className="block text-slate-400 mb-1 font-semibold">Dorsal</label>
                   <input
                     type="number"
                     value={subJersey}
                     onChange={(e) => setSubJersey(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-amber-400"
+                    className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+            <div className="grid grid-cols-2 gap-2 pt-2">
               <button
-                type="button"
-                onClick={() => setSubstitutionModal({ isOpen: false, teamId: '', player: null })}
-                className="px-4 py-2 text-xs text-slate-400 hover:text-white"
+                onClick={() => setSubstitutionModal({ isOpen: false, team: null, player: null })}
+                className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl"
               >
                 Cancelar
               </button>
               <button
-                type="button"
                 onClick={handleConfirmSubstitution}
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-all shadow"
+                className="py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow"
               >
-                Confirmar Sustitución
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* Delete team confirmation */}
-      {teamToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl max-h-[90dvh] overflow-y-auto">
-            <h3 className="font-display font-black text-lg text-white">Eliminar equipo</h3>
-            <p className="text-sm text-slate-300">
-              ¿Seguro que quieres eliminar permanentemente a{' '}
-              <strong className="text-white">{teamToDelete.name}</strong> ({teamToDelete.folio})?
-            </p>
-            <p className="text-xs text-slate-400">
-              Capitán: {teamToDelete.captain.fullName} ·{' '}
-              {teamToDelete.players.filter((pl) => pl.isActive).length} jugadores activos. Esta
-              acción no se puede deshacer.
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setTeamToDelete(null)}
-                className="min-h-[44px] px-4 py-2 text-sm text-slate-300 hover:text-white rounded-xl"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDeleteTeam}
-                className="min-h-[44px] px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm rounded-xl flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Eliminar equipo</span>
+                Registrar Sustitución
               </button>
             </div>
           </div>

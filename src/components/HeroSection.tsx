@@ -1,192 +1,247 @@
-import React from 'react';
-import { Calendar, Clock, User, Award, Users, CheckCircle2, Trophy, ArrowRight, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, Award, Users, Trophy, ArrowRight, ShieldCheck, Smartphone, Eye, X } from 'lucide-react';
 
 interface HeroSectionProps {
   onGoToRegister: () => void;
   onGoToTeams: () => void;
-  onGoToAdmin: () => void;
+  onGoToRules: () => void;
+  onGoToFixture?: () => void;
+  onOpenInstallModal?: () => void;
   registeredTeamsCount: number;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onGoToRegister,
   onGoToTeams,
-  onGoToAdmin,
+  onGoToRules,
+  onOpenInstallModal,
   registeredTeamsCount,
 }) => {
-  return (
-    <div className="relative overflow-hidden bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 border-b border-slate-800">
-      
-      {/* Top Banner Notice: Organized by Axel */}
-      <div className="bg-amber-500 text-slate-950 font-bold text-xs sm:text-sm py-2 px-4 text-center flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
-        <Trophy className="w-4 h-4 text-slate-950 shrink-0" />
-        <span>
-          ¡Torneo Relámpago de Fútbol Oficial! · Jueves 12 de Noviembre · Organiza: <strong>Axel Javier González Salas</strong>
-        </span>
-      </div>
+  const [showPosterModal, setShowPosterModal] = useState(false);
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+  return (
+    <div className="relative overflow-hidden bg-slate-950 pb-6 pt-3 sm:pt-5">
+      
+      {/* Decorative ambient background glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-48 bg-gradient-to-b from-amber-500/10 to-transparent blur-3xl pointer-events-none" />
+
+      <div className="max-w-2xl mx-auto px-3.5 sm:px-6 space-y-3 sm:space-y-3.5">
+
+        {/* =========================================================
+            CARD 1: MATCHDAY HERO CARD (Tarjeta Principal)
+            ========================================================= */}
+        <div className="relative rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border border-amber-500/30 p-4 sm:p-5 shadow-xl shadow-black/50 overflow-hidden">
           
-          {/* Left Column: Big Title, Bases & Giant Action Button */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="relative z-10 space-y-3">
             
-            {/* Live Counter Badge */}
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-sm sm:text-base shadow-sm">
-              <Users className="w-5 h-5 text-amber-400" />
-              <span>
-                Equipos Ya Registrados: <strong className="font-mono text-white text-lg sm:text-xl underline decoration-amber-500 decoration-2">{registeredTeamsCount} Equipos</strong>
+            {/* Top Status & Date */}
+            <div className="flex items-center justify-between gap-1 text-[11px]">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold tracking-wide">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Inscripciones Abiertas
+              </span>
+              
+              <span className="inline-flex items-center gap-1 text-slate-300 font-semibold bg-slate-950/80 px-2.5 py-0.5 rounded-full border border-slate-800">
+                <Calendar className="w-3 h-3 text-amber-400 shrink-0" />
+                <span>Jueves 12 de Nov</span>
               </span>
             </div>
 
+            {/* Tournament Title */}
             <div>
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-none">
-                TORNEO <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500">
-                  RELÁMPAGO
-                </span> <br />
-                DE FÚTBOL
+              <p className="text-[10px] sm:text-xs uppercase tracking-widest text-amber-400 font-extrabold">
+                Copa Escolar Oficial · 6 vs 6
+              </p>
+              <h1 className="font-display text-xl sm:text-3xl font-black text-white tracking-tight leading-tight mt-0.5">
+                Torneo Relámpago de Fútbol
               </h1>
-              
-              <p className="mt-3 text-base sm:text-lg text-slate-200 font-medium leading-relaxed">
-                ¡Arma tu equipo con tus amigos de la escuela y compite por el <strong>Premio Sorpresa</strong>!
-                Revisa las bases oficiales y registra a tu escuadra antes de que se agoten los lugares.
+              <p className="text-xs text-slate-300 font-normal mt-0.5">
+                Regla de plantilla <strong>2-2-2</strong> obligatoria por grado escolar.
               </p>
             </div>
 
-            {/* Giant Register Button */}
-            <div className="pt-2">
+            {/* Metrics Bar (Compact Single Row, No wrapping in Galaxy 384px) */}
+            <div className="grid grid-cols-3 gap-1.5 p-2 bg-slate-950/80 rounded-xl border border-slate-800/80 text-center">
+              <div>
+                <span className="text-[9px] uppercase font-semibold text-slate-400 block">Equipos</span>
+                <span className="font-mono text-base sm:text-xl font-black text-amber-400">
+                  {registeredTeamsCount}
+                </span>
+              </div>
+              <div className="border-x border-slate-800">
+                <span className="text-[9px] uppercase font-semibold text-slate-400 block">Plantilla</span>
+                <span className="font-mono text-base sm:text-xl font-black text-white">
+                  6v6
+                </span>
+              </div>
+              <div>
+                <span className="text-[9px] uppercase font-semibold text-slate-400 block">Premio</span>
+                <span className="text-xs sm:text-sm font-black text-amber-400">
+                  🏆 Sorpresa
+                </span>
+              </div>
+            </div>
+
+            {/* Primary Action Button */}
+            <div className="pt-0.5">
               <button
                 onClick={onGoToRegister}
-                className="w-full sm:w-auto px-8 py-4 sm:py-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-lg sm:text-xl rounded-2xl transition-all shadow-xl shadow-amber-500/25 flex items-center justify-center gap-3 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                className="w-full h-11 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all"
               >
-                <span className="text-2xl">⚽</span>
-                <span>REGISTRAR EQUIPO AHORA</span>
-                <ArrowRight className="w-6 h-6 text-slate-950" />
-              </button>
-              <span className="text-xs text-slate-400 block mt-2 font-medium">
-                ⚡ Registro rápido y gratuito · Se genera tu cédula de inmediato
-              </span>
-            </div>
-
-            {/* Bases Resumidas para Chicos de 12 a 15 Años */}
-            <div className="p-5 rounded-2xl bg-slate-900 border-2 border-amber-500/40 shadow-xl space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <ShieldCheck className="w-5 h-5 text-amber-400" />
-                  <span className="font-display font-extrabold text-base text-white uppercase tracking-wide">
-                    Bases Oficiales Obligatorias
-                  </span>
-                </div>
-                <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
-                  Plantilla de 6
-                </span>
-              </div>
-
-              {/* 2-2-2 Visual Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-center">
-                  <span className="text-xs text-slate-400 font-bold block uppercase">Alumnos de</span>
-                  <span className="text-2xl font-black font-display text-amber-400 block my-0.5">3er Año</span>
-                  <span className="text-xs text-emerald-400 font-bold">✓ 2 Jugadores</span>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-center">
-                  <span className="text-xs text-slate-400 font-bold block uppercase">Alumnos de</span>
-                  <span className="text-2xl font-black font-display text-amber-400 block my-0.5">2do Año</span>
-                  <span className="text-xs text-emerald-400 font-bold">✓ 2 Jugadores</span>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-center">
-                  <span className="text-xs text-slate-400 font-bold block uppercase">Alumnos de</span>
-                  <span className="text-2xl font-black font-display text-amber-400 block my-0.5">1er Año</span>
-                  <span className="text-xs text-emerald-400 font-bold">✓ 2 Jugadores</span>
-                </div>
-              </div>
-
-              {/* Requirements row */}
-              <div className="text-xs text-slate-300 grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
-                <span className="flex items-center gap-2 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Todos deben presentar credencial escolar vigente
-                </span>
-                <span className="flex items-center gap-2 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Un jugador no puede repetir en 2 equipos
-                </span>
-              </div>
-            </div>
-
-            {/* Key Information Badges */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-amber-400 shrink-0" />
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Día del Torneo:</span>
-                  <strong className="text-white text-sm">Jueves 12 de Noviembre</strong>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
-                <Clock className="w-5 h-5 text-amber-400 shrink-0" />
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Inscripciones:</span>
-                  <strong className="text-white text-sm">De Lunes a Miércoles</strong>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
-                <User className="w-5 h-5 text-amber-400 shrink-0" />
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Coordinador:</span>
-                  <strong className="text-white text-sm">Axel Javier G. S.</strong>
-                </div>
-              </div>
-            </div>
-
-            {/* Surprise Award */}
-            <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border border-amber-500/40 flex items-center gap-3">
-              <Award className="w-6 h-6 text-amber-400 shrink-0" />
-              <div className="text-xs">
-                <strong className="text-amber-300 block text-sm font-bold uppercase">
-                  ¡El equipo ganador tendrá un Premio Sorpresa!
-                </strong>
-                <span className="text-slate-300">
-                  Se dará a conocer y se entregará durante la ceremonia el día del torneo.
-                </span>
-              </div>
-            </div>
-
-            {/* Secondary navigation */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                onClick={onGoToTeams}
-                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>Ver los {registeredTeamsCount} Equipos Inscritos</span>
+                <span>⚽</span>
+                <span>Inscribir mi Equipo Ahora</span>
+                <ArrowRight className="w-4 h-4 text-slate-950" />
               </button>
             </div>
 
           </div>
+        </div>
 
-          {/* Right Column: Poster Image */}
-          <div className="lg:col-span-5 flex flex-col justify-center items-center">
-            <div className="relative group rounded-3xl overflow-hidden border-2 border-amber-500/40 shadow-2xl bg-slate-900 max-w-sm w-full">
+        {/* =========================================================
+            CARD 2: RESUMEN REGLA 2-2-2 (Acceso a la pestaña Reglas)
+            ========================================================= */}
+        <button
+          onClick={onGoToRules}
+          className="w-full text-left p-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-900 border border-emerald-500/30 hover:border-emerald-500/60 shadow-lg space-y-2 transition-all active:scale-98 cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="font-display font-black text-xs sm:text-sm text-white">
+                  Formación Obligatoria 2-2-2
+                </h2>
+                <span className="text-[10px] text-slate-400">Toca para ver la cancha táctica y bases completas</span>
+              </div>
+            </div>
+            <span className="text-xs text-amber-400 font-bold group-hover:translate-x-0.5 transition-transform">
+              Ver ➔
+            </span>
+          </div>
+
+          {/* Mini 3 badges strip */}
+          <div className="grid grid-cols-3 gap-1.5 pt-0.5 text-center text-[10px]">
+            <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800">
+              <span className="text-slate-400 block text-[9px]">3er Año</span>
+              <strong className="text-amber-400">2 Ataque</strong>
+            </div>
+            <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800">
+              <span className="text-slate-400 block text-[9px]">2do Año</span>
+              <strong className="text-blue-400">2 Medio</strong>
+            </div>
+            <div className="p-1.5 rounded-lg bg-slate-950 border border-slate-800">
+              <span className="text-slate-400 block text-[9px]">1er Año</span>
+              <strong className="text-purple-400">2 Defensa</strong>
+            </div>
+          </div>
+        </button>
+
+        {/* =========================================================
+            CARD 3: ACCESOS RÁPIDOS (Cuadrícula compacta de 4)
+            ========================================================= */}
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <button
+            onClick={onGoToRegister}
+            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-500/40 active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center"
+          >
+            <span className="text-base mb-0.5">⚽</span>
+            <span className="text-[10px] font-bold text-white leading-tight">Inscribir</span>
+          </button>
+
+          <button
+            onClick={onGoToRules}
+            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/40 active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-400 mb-0.5" />
+            <span className="text-[10px] font-bold text-white leading-tight">Reglas</span>
+          </button>
+
+          <button
+            onClick={onGoToTeams}
+            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-blue-500/40 active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center"
+          >
+            <Users className="w-4 h-4 text-blue-400 mb-0.5" />
+            <span className="text-[10px] font-bold text-white leading-tight">Equipos ({registeredTeamsCount})</span>
+          </button>
+
+          {onOpenInstallModal ? (
+            <button
+              onClick={onOpenInstallModal}
+              className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:border-amber-500 active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center"
+            >
+              <Smartphone className="w-4 h-4 text-amber-400 mb-0.5" />
+              <span className="text-[10px] font-bold text-amber-300 leading-tight">Instalar</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowPosterModal(true)}
+              className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center"
+            >
+              <Eye className="w-4 h-4 text-purple-400 mb-0.5" />
+              <span className="text-[10px] font-bold text-white leading-tight">Póster</span>
+            </button>
+          )}
+        </div>
+
+        {/* =========================================================
+            CARD 4: ORGANIZADOR & PÓSTER OFICIAL
+            ========================================================= */}
+        <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between text-xs text-slate-300">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Organizador: <strong className="text-white">Axel Javier G. S.</strong></span>
+          </div>
+
+          <button
+            onClick={() => setShowPosterModal(true)}
+            className="text-[11px] font-bold text-amber-400 hover:text-white bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/30 px-2.5 py-1 rounded-xl flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Ver Póster</span>
+          </button>
+        </div>
+
+      </div>
+
+      {/* Modal Desplegable para el Póster */}
+      {showPosterModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-150"
+        >
+          <div className="fixed inset-0" onClick={() => setShowPosterModal(false)} />
+          <div className="relative w-full max-w-sm bg-slate-900 border border-amber-500/40 rounded-2xl p-3.5 shadow-2xl space-y-2.5 z-10">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>⚽</span> Póster Oficial Torneo Relámpago
+              </span>
+              <button
+                onClick={() => setShowPosterModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-slate-800 max-h-[70vh] flex items-center justify-center bg-slate-950">
               <img
                 src="/assets/aistudio/1794175219156_bba2b4f1.jpg"
-                alt="Póster Oficial Torneo Relámpago de Fútbol"
-                referrerPolicy="no-referrer"
-                className="w-full h-auto object-contain bg-slate-950 transition-transform duration-500 group-hover:scale-[1.02]"
+                alt="Póster Oficial Torneo Relámpago"
+                className="w-full h-auto object-contain max-h-[68vh]"
               />
-              <div className="p-3.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs text-slate-300">
-                <span className="font-bold text-amber-400">Póster Oficial del Torneo</span>
-                <span>Axel Javier González Salas</span>
-              </div>
             </div>
+            <button
+              onClick={() => setShowPosterModal(false)}
+              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl"
+            >
+              Cerrar
+            </button>
           </div>
-
         </div>
-      </div>
+      )}
+
     </div>
   );
 };

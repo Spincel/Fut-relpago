@@ -140,3 +140,41 @@ export function canSubstitutePlayer(
   return { allowed: true };
 }
 
+/**
+ * Encuentra si algún jugador del equipo objetivo ya está registrado en otro equipo del torneo.
+ */
+export function findTeamDuplicatePlayers(
+  targetTeam: Team,
+  allTeams: Team[]
+): Array<{ player: Player; otherTeam: Team }> {
+  const duplicates: Array<{ player: Player; otherTeam: Team }> = [];
+
+  for (const player of targetTeam.players) {
+    if (!player.isActive) continue;
+    const cleanName = player.fullName.trim().toLowerCase();
+    const cleanCurp = (player.studentIdOrCurp || '').trim().toLowerCase();
+
+    if (!cleanName && !cleanCurp) continue;
+
+    for (const otherTeam of allTeams) {
+      if (otherTeam.id === targetTeam.id) continue;
+
+      for (const otherPlayer of otherTeam.players) {
+        if (!otherPlayer.isActive) continue;
+        const otherName = otherPlayer.fullName.trim().toLowerCase();
+        const otherCurp = (otherPlayer.studentIdOrCurp || '').trim().toLowerCase();
+
+        const isNameMatch = cleanName.length >= 4 && cleanName === otherName;
+        const isCurpMatch = cleanCurp && otherCurp && cleanCurp === otherCurp;
+
+        if (isNameMatch || isCurpMatch) {
+          duplicates.push({ player, otherTeam });
+        }
+      }
+    }
+  }
+
+  return duplicates;
+}
+
+

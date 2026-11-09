@@ -1,7 +1,7 @@
 import { Team } from '../types/tournament';
 
 export function formatPhoneForWhatsApp(phone: string): string {
-  // Strip all non-digit characters
+  if (!phone) return '';
   const digits = phone.replace(/\D/g, '');
   if (!digits) return '';
 
@@ -16,29 +16,50 @@ export function formatPhoneForWhatsApp(phone: string): string {
   return digits;
 }
 
+/**
+ * Mensaje prediseñado para Axel: Notificar al capitán que su equipo fue aprobado
+ * y que espere el sorteo oficial.
+ */
 export function generateWhatsAppApprovalLink(team: Team): string {
   const phone = formatPhoneForWhatsApp(team.captain.phone);
   const message = `¡Hola ${team.captain.fullName}! ⚽🏆 Te saluda Axel Javier González Salas, organizador del Torneo Relámpago de Fútbol del Jueves 12 de Noviembre.
 
-Te confirmo con gusto que tu equipo *${team.name}* (Folio: *${team.folio}*) fue REVISADO y VALIDADO con éxito.
+Te confirmo que tu equipo *${team.name}* (Folio: *${team.folio}*) quedó REGISTRADO Y VALIDADO OFICIALMENTE con uniforme ${team.uniformColor} y plantilla 2-2-2.
 
-Cumplen con todas las bases oficiales:
-- Plantilla de 6 jugadores
-- 2 jugadores de 3er año
-- 2 jugadores de 2do año
-- 2 jugadores de 1er año
-- Documentos escolares verificados
+Tu lugar está asegurado. Espera el sorteo oficial para saber contra quién te enfrentarás en tu primer partido. ¡Mucho éxito! 🎉`;
 
-¡Tu equipo ya tiene su lugar asegurado en el Rol de Juegos! Recuerda presentarte el Jueves 12 de Noviembre con uniforme ${team.uniformColor}. ¡Mucha suerte por el Premio Sorpresa! 🎉`;
-
-  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const phoneParam = phone ? `${phone}` : '';
+  return `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
 }
 
+/**
+ * Mensaje prediseñado para Axel: Notificar que un jugador ya está registrado en otro equipo.
+ */
+export function generateWhatsAppDuplicatePlayerLink(
+  team: Team,
+  playerName: string,
+  otherTeamName: string,
+  grade: number
+): string {
+  const phone = formatPhoneForWhatsApp(team.captain.phone);
+  const message = `¡Hola ${team.captain.fullName}! ⚽ Te saluda Axel Javier González Salas, organizador del Torneo Relámpago del Jueves 12 de Noviembre.
+
+Al revisar el registro de tu equipo *${team.name}* (Folio: *${team.folio}*), detectamos que el jugador *${playerName}* (${grade}º año) ya está registrado en el equipo *${otherTeamName}*.
+
+Por reglamento oficial ningún alumno puede estar registrado en dos equipos. Por favor realiza la sustitución de tu jugador de ${grade}º año a la brevedad para poder autorizar oficialmente a tu escuadra. ¡Saludos!`;
+
+  const phoneParam = phone ? `${phone}` : '';
+  return `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Mensaje prediseñado para Axel: Enviar observaciones generales
+ */
 export function generateWhatsAppObservationsLink(team: Team, issues: string[]): string {
   const phone = formatPhoneForWhatsApp(team.captain.phone);
   const issuesText = issues.length > 0 ? issues.map((i) => `· ${i}`).join('\n') : 'Falta cotejar credenciales escolares.';
 
-  const message = `¡Hola ${team.captain.fullName}! ⚽ Te saluda Axel Javier González Salas, organizador del Torneo Relámpago de Fútbol del Jueves 12 de Noviembre.
+  const message = `¡Hola ${team.captain.fullName}! ⚽ Te saluda Axel Javier González Salas, organizador del Torneo Relámpago.
 
 Revisé el registro de tu equipo *${team.name}* (Folio: *${team.folio}*) y necesitamos atender lo siguiente antes del miércoles para que queden oficialmente aceptados:
 
@@ -46,11 +67,14 @@ ${issuesText}
 
 Por favor responde a este mensaje para ayudarte a corregirlo. ¡Saludos!`;
 
-  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const phoneParam = phone ? `${phone}` : '';
+  return `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
 }
 
+/**
+ * Mensaje del capitán hacia Axel al terminar de registrarse
+ */
 export function generateCaptainToAxelLink(team: Team): string {
-  // Message for captain to send to Axel
   const message = `¡Hola Axel Javier! ⚽ Te comparto el registro de mi equipo *${team.name}* para el Torneo Relámpago de Fútbol del Jueves 12 de Noviembre.
 
 Folio oficial: *${team.folio}*

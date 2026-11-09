@@ -69,7 +69,8 @@ export interface TournamentRulesCheck {
 export interface TournamentMatch {
   id: string;
   matchNumber: number;
-  round: 'Cuartos de Final' | 'Semifinales' | 'Tercer Lugar' | 'Gran Final';
+  round: string;
+  groupName?: string;
   teamAId: string;
   teamBId: string;
   scoreA?: number;
