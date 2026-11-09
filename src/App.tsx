@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { HeroSection } from './components/HeroSection';
@@ -43,6 +43,12 @@ export default function App() {
 
   const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
   const [newlyRegisteredTeam, setNewlyRegisteredTeam] = useState<Team | null>(null);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+
+  // Cada que cambia la pestaña, restablecer el scroll al inicio en el contenedor de la app
+  useEffect(() => {
+    mainScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [currentTab]);
 
   // Load teams from persistent local storage on mount
   useEffect(() => {
@@ -144,7 +150,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+    <div className="h-full h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       
       {/* Top Header App Bar (Clean for regular users, shows status for Axel if logged in) */}
       <Header
@@ -156,11 +162,11 @@ export default function App() {
           setCurrentTab('bases');
         }}
         totalTeamsCount={teams.length}
+        onOpenAdminLogin={() => setAdminLoginModalOpen(true)}
       />
 
-      {/* Main Body Router with clearance for the fixed mobile bottom nav
-          (64px de barra + safe-area del iPhone con indicador de inicio). */}
-      <main className="flex-1 pb-28 lg:pb-12">
+      {/* Main Body Router con scroll inercial nativo y desacoplado del marco de la app */}
+      <main ref={mainScrollRef} className="flex-1 app-scroll-view">
         {currentTab === 'bases' && (
           <div>
             <HeroSection
@@ -238,6 +244,41 @@ export default function App() {
             </div>
           )
         )}
+
+        {/* Footer with Discrete Admin Login Link (Dentro de main para fluir con el scroll) */}
+        <footer className="no-print border-t border-slate-900 bg-slate-950/80 py-6 pb-28 lg:pb-8 text-xs text-slate-400">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <div className="flex items-center gap-2 justify-center sm:justify-start">
+              <Trophy className="w-4 h-4 text-amber-500" />
+              <span className="font-semibold text-slate-200">
+                Torneo Relámpago de Fútbol 2026
+              </span>
+              <span>·</span>
+              <span>Jueves 12 de Noviembre</span>
+            </div>
+
+            <div className="flex items-center gap-4 justify-center sm:justify-end text-[11px] flex-wrap">
+              <span>Organizador: <strong className="text-amber-400">Axel Javier González Salas</strong></span>
+              <span>·</span>
+              {/* Discrete organizer login link for Axel */}
+              {!isAdmin ? (
+                <button
+                  onClick={() => setAdminLoginModalOpen(true)}
+                  className="text-slate-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Acceso exclusivo para el organizador"
+                >
+                  <Lock className="w-3 h-3 text-slate-500" />
+                  <span>Acceso Organizador</span>
+                </button>
+              ) : (
+                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>Sesión de Axel Activa</span>
+                </span>
+              )}
+            </div>
+          </div>
+        </footer>
       </main>
 
       {/* Banner de instalación de la PWA (Android / iOS) */}
@@ -252,41 +293,6 @@ export default function App() {
         isAdmin={isAdmin}
         onOpenAdminLogin={() => setAdminLoginModalOpen(true)}
       />
-
-      {/* Footer with Discrete Admin Login Link */}
-      <footer className="no-print border-t border-slate-800 bg-slate-950 py-6 pb-28 lg:pb-6 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-          <div className="flex items-center gap-2 justify-center sm:justify-start">
-            <Trophy className="w-4 h-4 text-amber-500" />
-            <span className="font-semibold text-slate-200">
-              Torneo Relámpago de Fútbol 2026
-            </span>
-            <span>·</span>
-            <span>Jueves 12 de Noviembre</span>
-          </div>
-
-          <div className="flex items-center gap-4 justify-center sm:justify-end text-[11px] flex-wrap">
-            <span>Organizador: <strong className="text-amber-400">Axel Javier González Salas</strong></span>
-            <span>·</span>
-            {/* Discrete organizer login link for Axel */}
-            {!isAdmin ? (
-              <button
-                onClick={() => setAdminLoginModalOpen(true)}
-                className="text-slate-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer transition-colors"
-                title="Acceso exclusivo para el organizador"
-              >
-                <Lock className="w-3 h-3 text-slate-500" />
-                <span>Acceso Organizador</span>
-              </button>
-            ) : (
-              <span className="text-emerald-400 font-bold flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" />
-                <span>Sesión de Axel Activa</span>
-              </span>
-            )}
-          </div>
-        </div>
-      </footer>
 
       {/* Registration Success Dialog */}
       {newlyRegisteredTeam && (

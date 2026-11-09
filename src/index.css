@@ -8,21 +8,88 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
-html {
-  -webkit-tap-highlight-color: transparent;
-  scroll-behavior: smooth;
-}
-
-/* Evita desplazamiento horizontal accidental en móvil: ningún elemento
-   debe ensanchar la página más allá de los 360px del viewport. */
+/* ==========================================================
+   APP FRAME LOCKDOWN (Look & Feel de App Móvil Nativa)
+   - Cero deslizamiento elástico (overscroll bounce) del navegador.
+   - Cero desplazamiento horizontal accidental.
+   - La ventana jamás se mueve; solo se desplaza el contenedor <main>.
+   ========================================================== */
 html,
 body {
-  overflow-x: clip;
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overscroll-behavior: none;
+  touch-action: pan-y;
+  background-color: #020617;
+  color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* En iOS, un input con fuente menor de 16px hace zoom al enfocarlo.
-   En móvil se fuerza 16px en campos editables (sin tocar el diseño
-   de escritorio, donde las clases text-xs/text-sm siguen mandando). */
+#root {
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: #020617;
+}
+
+/* Contenedor con inercia de scroll nativo iOS/Android */
+.app-scroll-view {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+}
+
+/* Ocultar barra de scroll en chips/filtros estilo app nativa */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Controles interactivos con feedback táctil inmediato y sin selección */
+button,
+a,
+[role="button"],
+nav,
+header,
+.no-select {
+  touch-action: manipulation;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Permitir selección de texto SOLO en inputs, textareas y folios */
+input,
+textarea,
+[contenteditable="true"],
+.selectable-text {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* En iOS, un input con fuente menor de 16px hace zoom al enfocarlo y rompe la vista.
+   En móvil se fuerza 16px en campos editables */
 @media (max-width: 640px) {
   input[type='text'],
   input[type='tel'],
@@ -36,29 +103,32 @@ body {
   }
 }
 
-/* En la app instalada (standalone) el encabezado no debe quedar bajo
-   el notch o la isla dinámica: se reserva el safe-area superior. */
+/* Safe areas para el notch/isla dinámica y la barra inferior de gestos */
 .app-header {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: max(0px, env(safe-area-inset-top));
+}
+
+.safe-area-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 body {
   font-family: var(--font-sans);
-  overscroll-behavior-y: none;
 }
 
 h1, h2, h3, .font-display {
   font-family: var(--font-display);
 }
 
-.safe-area-bottom {
-  padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
-}
-
 @media print {
-  body {
+  html, body, #root {
+    height: auto !important;
+    overflow: visible !important;
     background-color: white !important;
     color: black !important;
+  }
+  .app-scroll-view {
+    overflow: visible !important;
   }
   .no-print {
     display: none !important;
