@@ -73,6 +73,18 @@ El servidor estará disponible en `http://localhost:3000`.
 
 ---
 
+## 📱 App instalable (PWA) y móvil
+
+La app es instalable en el celular como acceso directo:
+
+- **Android (Chrome):** abre la app, toca el banner **“Instalar app”** o el menú ⋮ → **Instalar app / Agregar a pantalla de inicio**.
+- **iPhone (Safari):** toca **Compartir** → **Agregar a inicio**. iOS no muestra el banner automático; la app trae las instrucciones en el mismo aviso.
+- Una vez instalada abre a pantalla completa (`display: standalone`), con icono propio y funciona sin conexión para el shell de la app (los datos de equipos viven en `localStorage` del dispositivo).
+
+Detalles técnicos: `public/manifest.webmanifest`, iconos en `public/icons/` (192, 512, maskable y `apple-touch-icon`), service worker manual en `public/sw.js` registrado desde `src/main.tsx` (solo en producción) y banner de instalación en `src/components/InstallBanner.tsx`.
+
+---
+
 ## 📦 Sincronización con GitHub
 
 Para subir las actualizaciones a tu repositorio oficial:

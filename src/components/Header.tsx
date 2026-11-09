@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   totalTeamsCount,
 }) => {
   return (
-    <header className="no-print sticky top-0 z-40 w-full bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
+    <header className="app-header no-print sticky top-0 z-40 w-full bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-4">
         
         {/* Zone 1: Wordmark / Brand Title */}
@@ -28,11 +28,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 group-hover:scale-105 transition-transform">
             <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <span className="font-display font-black text-sm sm:text-base tracking-tight text-white whitespace-nowrap block">
+          <div className="min-w-0">
+            <span className="font-display font-black text-sm sm:text-base tracking-tight text-white whitespace-nowrap block truncate">
               Torneo Relámpago
             </span>
-            <span className="text-[10px] sm:text-xs text-amber-400 font-medium block -mt-0.5">
+            <span className="text-[10px] sm:text-xs text-amber-400 font-medium block -mt-0.5 truncate">
               Jueves 12 Nov · 6 Jugadores (2-2-2)
             </span>
           </div>
@@ -82,14 +82,14 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 p-1 sm:p-1.5 rounded-xl">
               <button
                 onClick={() => setCurrentTab('admin')}
-                className="px-2 py-1 text-xs font-bold text-amber-300 hover:text-white flex items-center gap-1.5 cursor-pointer"
+                className="min-h-[36px] px-2.5 py-1 text-xs font-bold text-amber-300 hover:text-white flex items-center gap-1.5 cursor-pointer"
               >
                 <ShieldCheck className="w-4 h-4 text-amber-400" />
                 <span className="hidden sm:inline">Panel Axel</span>
               </button>
               <button
                 onClick={onLogoutAdmin}
-                className="p-1 text-slate-400 hover:text-rose-400 transition-colors rounded cursor-pointer"
+                className="min-w-[44px] min-h-[44px] p-2.5 text-slate-400 hover:text-rose-400 transition-colors rounded cursor-pointer flex items-center justify-center"
                 title="Cerrar sesión de administrador"
               >
                 <LogOut className="w-3.5 h-3.5" />

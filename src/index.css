@@ -13,6 +13,35 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Evita desplazamiento horizontal accidental en móvil: ningún elemento
+   debe ensanchar la página más allá de los 360px del viewport. */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* En iOS, un input con fuente menor de 16px hace zoom al enfocarlo.
+   En móvil se fuerza 16px en campos editables (sin tocar el diseño
+   de escritorio, donde las clases text-xs/text-sm siguen mandando). */
+@media (max-width: 640px) {
+  input[type='text'],
+  input[type='tel'],
+  input[type='number'],
+  input[type='password'],
+  input[type='email'],
+  input[type='search'],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* En la app instalada (standalone) el encabezado no debe quedar bajo
+   el notch o la isla dinámica: se reserva el safe-area superior. */
+.app-header {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 body {
   font-family: var(--font-sans);
   overscroll-behavior-y: none;

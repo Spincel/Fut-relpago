@@ -203,8 +203,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       </div>
 
       {/* Rules Live Pill Counter */}
-      <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 grid grid-cols-4 gap-2 text-center text-xs">
-        <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+      <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 grid grid-cols-4 gap-1.5 text-center text-xs">
+        <div className="p-1.5 sm:p-2 rounded-xl bg-slate-950 border border-slate-800">
           <span className="text-slate-400 text-[10px] block font-bold">TOTAL</span>
           <span className="text-base sm:text-lg font-black font-mono text-white tabular-nums">
             {filledNamesCount}/6
@@ -297,7 +297,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                     key={c.name}
                     type="button"
                     onClick={() => setSelectedColor(c.name)}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all border cursor-pointer ${
+                    className={`min-h-[48px] py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all border cursor-pointer ${
                       isSelected
                         ? 'border-amber-400 bg-slate-800 text-white scale-105 shadow-md shadow-amber-500/10 ring-2 ring-amber-400'
                         : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white hover:border-slate-700'
@@ -406,11 +406,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         </div>
 
         {/* Buttons */}
-        <div className="flex items-center gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors text-center"
+            className="flex-1 min-h-[48px] py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors text-center"
           >
             Cancelar
           </button>
@@ -418,7 +418,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           <button
             type="submit"
             disabled={isSubmitting || teamNameIsDuplicate}
-            className="flex-2 py-3.5 px-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm rounded-xl transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
+            className="flex-2 min-h-[48px] py-3.5 px-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
           >
             <CheckCircle2 className="w-5 h-5 text-slate-950" />
             <span>REGISTRAR EQUIPO AHORA</span>
@@ -449,7 +449,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           value={player.fullName}
           onChange={(e) => handlePlayerNameChange(index, e.target.value)}
           placeholder={`Nombre completo del jugador #${index + 1}`}
-          className="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
+          className="flex-1 min-w-0 px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
         />
 
         {/* Grade selector or badge */}

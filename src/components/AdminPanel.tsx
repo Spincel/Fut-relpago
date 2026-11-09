@@ -312,7 +312,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       
       {/* New Registrations Alert Banner for Axel */}
       {newRegistrationsCount > 0 && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 font-bold flex items-center justify-between gap-4 shadow-xl shadow-amber-500/20 animate-bounce-once">
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 font-bold flex flex-wrap items-center justify-between gap-4 shadow-xl shadow-amber-500/20 animate-bounce-once">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center">
               <Bell className="w-5 h-5 animate-pulse" />
@@ -330,7 +330,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           {onClearNewNotification && (
             <button
               onClick={onClearNewNotification}
-              className="px-3.5 py-1.5 bg-slate-950 text-white rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors shrink-0"
+              className="min-h-[40px] px-3.5 py-1.5 bg-slate-950 text-white rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors shrink-0"
             >
               Marcar como Visto
             </button>
@@ -365,14 +365,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <div className="flex items-center gap-2.5">
           <button
             onClick={onOpenNewRegistration}
-            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
+            className="min-h-[44px] px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
           >
             <UserPlus className="w-4 h-4 text-slate-950" />
             <span>+ Alta Presencial</span>
           </button>
           <button
             onClick={handleDownloadCSV}
-            className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
+            className="min-h-[44px] px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
             title="Descargar lista de equipos en Excel / CSV"
           >
             <Download className="w-4 h-4 text-amber-400" />
@@ -380,7 +380,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </button>
           <button
             onClick={handleResetData}
-            className="p-2.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 border border-slate-700 transition-colors"
+            className="min-w-[44px] min-h-[44px] p-2.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 border border-slate-700 transition-colors flex items-center justify-center"
             title="Restablecer equipos de prueba"
           >
             <RotateCcw className="w-4 h-4" />
@@ -464,7 +464,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl text-xs font-semibold">
             <button
               onClick={() => setFilterStatus('all')}
-              className={`flex-1 py-1.5 px-2 rounded-lg transition-colors ${
+              className={`flex-1 min-h-[36px] py-1.5 px-1 sm:px-2 text-[11px] sm:text-xs rounded-lg transition-colors ${
                 filterStatus === 'all'
                   ? 'bg-slate-800 text-white'
                   : 'text-slate-400 hover:text-white'
@@ -474,7 +474,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
             <button
               onClick={() => setFilterStatus('compliant')}
-              className={`flex-1 py-1.5 px-2 rounded-lg transition-colors ${
+              className={`flex-1 min-h-[36px] py-1.5 px-1 sm:px-2 text-[11px] sm:text-xs rounded-lg transition-colors ${
                 filterStatus === 'compliant'
                   ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
                   : 'text-slate-400 hover:text-white'
@@ -484,7 +484,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
             <button
               onClick={() => setFilterStatus('irregular')}
-              className={`flex-1 py-1.5 px-2 rounded-lg transition-colors ${
+              className={`flex-1 min-h-[36px] py-1.5 px-1 sm:px-2 text-[11px] sm:text-xs rounded-lg transition-colors ${
                 filterStatus === 'irregular'
                   ? 'bg-amber-950/80 text-amber-300 border border-amber-800'
                   : 'text-slate-400 hover:text-white'
@@ -494,7 +494,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
             <button
               onClick={() => setFilterStatus('disqualified')}
-              className={`flex-1 py-1.5 px-2 rounded-lg transition-colors ${
+              className={`flex-1 min-h-[36px] py-1.5 px-1 sm:px-2 text-[11px] sm:text-xs rounded-lg transition-colors ${
                 filterStatus === 'disqualified'
                   ? 'bg-rose-950/80 text-rose-300 border border-rose-800'
                   : 'text-slate-400 hover:text-white'
@@ -605,7 +605,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
 
                     {/* Operational Top Buttons */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => onOpenGameSheetModal(team)}
                         className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5 shadow"
@@ -646,7 +646,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   {/* Primary WhatsApp Direct Communication Card */}
                   <div className="p-4 rounded-2xl bg-emerald-950/40 border-2 border-emerald-600/50 space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <MessageCircle className="w-5 h-5 text-emerald-400" />
                         <span className="font-bold text-sm text-emerald-300">
@@ -748,7 +748,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
 
                   {/* Captain Contact Information */}
-                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs break-words">
                     <div>
                       <span className="text-slate-400 block font-semibold">Capitán:</span>
                       <strong className="text-white text-sm">{team.captain.fullName}</strong>
@@ -808,7 +808,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => onOpenDocumentModal(player, team)}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors border ${
+                              className={`min-h-[40px] px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors border ${
                                 player.document?.status === 'approved'
                                   ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800 hover:bg-emerald-900/60'
                                   : player.document?.status === 'rejected'
@@ -830,7 +830,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             {player.document?.status !== 'approved' && (
                               <button
                                 onClick={() => handleQuickApproveDoc(team.id, player.id)}
-                                className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                                className="min-w-[40px] min-h-[40px] p-2 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
                                 title="Aprobar inmediatamente documento"
                               >
                                 <CheckCircle className="w-4 h-4" />
@@ -839,7 +839,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                             <button
                               onClick={() => handleOpenSubstitution(team.id, player)}
-                              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium border border-slate-700 transition-colors"
+                              className="min-h-[40px] px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium border border-slate-700 transition-colors flex items-center"
                               title="Dar de baja y sustituir respetando el grado escolar"
                             >
                               Sustituir
@@ -885,7 +885,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Substitution Modal */}
       {substitutionModal.isOpen && substitutionModal.player && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 space-y-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
             
             <div className="border-b border-slate-800 pb-3">
               <span className="text-xs font-mono text-amber-400 font-bold block">

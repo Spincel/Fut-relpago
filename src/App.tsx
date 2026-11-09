@@ -9,6 +9,7 @@ import { FixtureGenerator } from './components/FixtureGenerator';
 import { DocumentViewerModal } from './components/DocumentViewerModal';
 import { OfficialGameSheetModal } from './components/OfficialGameSheetModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
+import { InstallBanner } from './components/InstallBanner';
 import { Team, Player } from './types/tournament';
 import { loadTeamsFromStorage, saveTeamsToStorage } from './utils/storage';
 import { generateCaptainToAxelLink } from './utils/whatsappHelper';
@@ -157,8 +158,9 @@ export default function App() {
         totalTeamsCount={teams.length}
       />
 
-      {/* Main Body Router with pb-24 for mobile bottom nav bar clearance */}
-      <main className="flex-1 pb-24 lg:pb-12">
+      {/* Main Body Router with clearance for the fixed mobile bottom nav
+          (64px de barra + safe-area del iPhone con indicador de inicio). */}
+      <main className="flex-1 pb-28 lg:pb-12">
         {currentTab === 'bases' && (
           <div>
             <HeroSection
@@ -219,7 +221,7 @@ export default function App() {
               onClearNewNotification={() => setNewRegistrationsCount(0)}
             />
           ) : (
-            <div className="max-w-md mx-auto my-16 p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+            <div className="max-w-md mx-4 sm:mx-auto my-16 p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
               <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
                 <Lock className="w-6 h-6" />
               </div>
@@ -238,6 +240,9 @@ export default function App() {
         )}
       </main>
 
+      {/* Banner de instalación de la PWA (Android / iOS) */}
+      <InstallBanner />
+
       {/* Fixed Bottom Mobile Navigation (Normal users see 4 tabs; Admin tab only shows if logged in) */}
       <MobileBottomNav
         currentTab={currentTab}
@@ -249,7 +254,7 @@ export default function App() {
       />
 
       {/* Footer with Discrete Admin Login Link */}
-      <footer className="no-print border-t border-slate-800 bg-slate-950 py-6 text-xs text-slate-400">
+      <footer className="no-print border-t border-slate-800 bg-slate-950 py-6 pb-28 lg:pb-6 text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div className="flex items-center gap-2 justify-center sm:justify-start">
             <Trophy className="w-4 h-4 text-amber-500" />
@@ -260,7 +265,7 @@ export default function App() {
             <span>Jueves 12 de Noviembre</span>
           </div>
 
-          <div className="flex items-center gap-4 justify-center sm:justify-end text-[11px]">
+          <div className="flex items-center gap-4 justify-center sm:justify-end text-[11px] flex-wrap">
             <span>Organizador: <strong className="text-amber-400">Axel Javier González Salas</strong></span>
             <span>·</span>
             {/* Discrete organizer login link for Axel */}
@@ -286,7 +291,7 @@ export default function App() {
       {/* Registration Success Dialog */}
       {newlyRegisteredTeam && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-slate-900 border-t-2 sm:border-2 border-amber-500/50 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg bg-slate-900 border-t-2 sm:border-2 border-amber-500/50 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
             
             {/* Mobile drag handle */}
             <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto sm:hidden -mt-1 mb-2" />

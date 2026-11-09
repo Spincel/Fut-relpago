@@ -23,6 +23,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         
         {/* Tab 1: Bases / Inicio */}
         <button
+          aria-label="Ir a Inicio"
           onClick={() => setCurrentTab('bases')}
           className={`flex flex-col items-center justify-center min-h-[48px] py-1 transition-all cursor-pointer ${
             currentTab === 'bases' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
@@ -34,6 +35,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
         {/* Tab 2: Equipos */}
         <button
+          aria-label="Ver equipos registrados"
           onClick={() => setCurrentTab('equipos')}
           className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 transition-all cursor-pointer ${
             currentTab === 'equipos' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
@@ -48,6 +50,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
         {/* Tab 3: Central Highlight: Inscribir */}
         <button
+          aria-label="Inscribir equipo"
           onClick={() => setCurrentTab('registro')}
           className="flex flex-col items-center justify-center -mt-5 group focus:outline-none cursor-pointer"
         >
@@ -67,6 +70,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
         {/* Tab 4: Rol / Fixture */}
         <button
+          aria-label="Ver rol de juegos"
           onClick={() => setCurrentTab('fixture')}
           className={`flex flex-col items-center justify-center min-h-[48px] py-1 transition-all cursor-pointer ${
             currentTab === 'fixture' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'
@@ -79,6 +83,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         {/* Tab 5: Admin Panel (ONLY visible when Axel is logged in!) */}
         {isAdmin && (
           <button
+            aria-label="Abrir panel del organizador"
             onClick={() => setCurrentTab('admin')}
             className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 transition-all cursor-pointer ${
               currentTab === 'admin' ? 'text-amber-400 font-bold scale-105' : 'text-slate-400 hover:text-white'

@@ -132,7 +132,7 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({ teams, isAdm
             className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 hover:border-slate-700 transition-colors"
           >
             {/* Match Header */}
-            <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-1 text-xs border-b border-slate-800 pb-2">
               <span className="font-display font-bold text-amber-400 uppercase tracking-wide">
                 Partido #{match.matchNumber} · {match.round}
               </span>
@@ -149,12 +149,12 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({ teams, isAdm
             <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800/80">
               {/* Team A */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-white">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-white shrink-0">
                     A
                   </div>
-                  <div>
-                    <span className="font-bold text-sm text-white block">
+                  <div className="min-w-0">
+                    <span className="font-bold text-sm text-white block truncate">
                       {getTeamName(match.teamAId)}
                     </span>
                     <span className="text-[11px] text-slate-400">
@@ -172,12 +172,12 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({ teams, isAdm
 
               {/* Team B */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-white">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-white shrink-0">
                     B
                   </div>
-                  <div>
-                    <span className="font-bold text-sm text-white block">
+                  <div className="min-w-0">
+                    <span className="font-bold text-sm text-white block truncate">
                       {getTeamName(match.teamBId)}
                     </span>
                     <span className="text-[11px] text-slate-400">
@@ -193,7 +193,7 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({ teams, isAdm
             </div>
 
             {/* Status / Winner */}
-            <div className="flex items-center justify-between text-xs pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
               {match.status === 'finalizado' ? (
                 <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
                   <Trophy className="w-4 h-4 text-amber-400" />
@@ -207,7 +207,7 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({ teams, isAdm
               {isAdmin && match.status !== 'finalizado' && (
                 <button
                   onClick={() => handleUpdateScore(match.id, 2, 1)}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded text-[11px] font-semibold border border-slate-700 transition-colors"
+                  className="min-h-[40px] px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded text-[11px] font-semibold border border-slate-700 transition-colors"
                 >
                   Registrar Marcador
                 </button>

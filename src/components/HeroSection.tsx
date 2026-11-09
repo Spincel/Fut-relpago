@@ -18,8 +18,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     <div className="relative overflow-hidden bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 border-b border-slate-800">
       
       {/* Top Banner Notice: Organized by Axel */}
-      <div className="bg-amber-500 text-slate-950 font-bold text-xs sm:text-sm py-2 px-4 text-center flex items-center justify-center gap-2">
-        <Trophy className="w-4 h-4 text-slate-950" />
+      <div className="bg-amber-500 text-slate-950 font-bold text-xs sm:text-sm py-2 px-4 text-center flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+        <Trophy className="w-4 h-4 text-slate-950 shrink-0" />
         <span>
           ¡Torneo Relámpago de Fútbol Oficial! · Jueves 12 de Noviembre · Organiza: <strong>Axel Javier González Salas</strong>
         </span>
@@ -71,14 +71,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
             {/* Bases Resumidas para Chicos de 12 a 15 Años */}
             <div className="p-5 rounded-2xl bg-slate-900 border-2 border-amber-500/40 shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2 min-w-0">
                   <ShieldCheck className="w-5 h-5 text-amber-400" />
                   <span className="font-display font-extrabold text-base text-white uppercase tracking-wide">
                     Bases Oficiales Obligatorias
                   </span>
                 </div>
-                <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full">
+                <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
                   Plantilla de 6
                 </span>
               </div>

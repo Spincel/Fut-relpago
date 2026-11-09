@@ -21,12 +21,14 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   onReject,
   isAdmin,
 }) => {
-  if (!isOpen || !player || !team) return null;
-
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
+
+  // Los hooks van antes del retorno anticipado: si no, React cambia el
+  // número de hooks entre renders al abrir/cerrar el modal.
+  if (!isOpen || !player || !team) return null;
 
   const QUICK_REASONS = [
     'Foto o documento ilegible/borroso.',
@@ -51,19 +53,19 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl bg-slate-900 border-t-2 sm:border border-slate-800 rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+      <div className="relative w-full max-w-4xl bg-slate-900 border-t-2 sm:border border-slate-800 rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90dvh]">
         {/* Mobile drag handle */}
         <div className="w-10 h-1.5 bg-slate-700 rounded-full mx-auto my-2 sm:hidden shrink-0" />
         
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-          <div>
+        <div className="px-4 sm:px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono text-amber-400 font-semibold">{team.folio}</span>
               <span className="text-slate-400">·</span>
               <span className="text-xs text-slate-300 font-medium">{team.name}</span>
             </div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2 mt-0.5">
+            <h2 className="text-base sm:text-lg font-bold text-white flex flex-wrap items-center gap-2 mt-0.5 break-words">
               <span>Expediente Documental: {player.fullName}</span>
               <span className="text-xs px-2 py-0.5 rounded font-mono bg-slate-800 text-amber-400 border border-slate-700">
                 {player.grade}º Año
@@ -73,14 +75,15 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            aria-label="Cerrar expediente"
+            className="min-w-[44px] min-h-[44px] p-2.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body: Document Preview & Info */}
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Document Preview Canvas */}
           <div className="lg:col-span-8 flex flex-col items-center justify-center bg-slate-950 rounded-xl border border-slate-800 p-4 min-h-[350px] relative overflow-hidden">
@@ -88,21 +91,21 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 p-1 rounded-lg backdrop-blur z-10">
               <button
                 onClick={() => setZoom((z) => Math.min(z + 0.25, 2.5))}
-                className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded"
+                className="min-w-[36px] min-h-[36px] p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center justify-center"
                 title="Acercar"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setZoom((z) => Math.max(z - 0.25, 0.75))}
-                className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded"
+                className="min-w-[36px] min-h-[36px] p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center justify-center"
                 title="Alejar"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setRotation((r) => (r + 90) % 360)}
-                className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded"
+                className="min-w-[36px] min-h-[36px] p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center justify-center"
                 title="Girar"
               >
                 <RotateCw className="w-4 h-4" />
@@ -210,14 +213,14 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={handleApprove}
-                      className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow"
+                      className="w-full min-h-[48px] py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow"
                     >
                       <CheckCircle className="w-4 h-4" />
                       <span>Aprobar</span>
                     </button>
                     <button
                       onClick={() => setShowRejectForm(true)}
-                      className="w-full py-2.5 px-3 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-600/40 font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full min-h-[48px] py-2.5 px-3 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-600/40 font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5"
                     >
                       <AlertTriangle className="w-4 h-4" />
                       <span>Rechazar</span>
@@ -233,7 +236,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                           key={idx}
                           type="button"
                           onClick={() => setRejectionReason(reason)}
-                          className="w-full text-left text-xs p-1.5 rounded hover:bg-slate-800 text-slate-300 truncate transition-colors"
+                          className="w-full text-left text-xs min-h-[36px] px-2 py-2 rounded hover:bg-slate-800 text-slate-300 truncate transition-colors"
                         >
                           · {reason}
                         </button>

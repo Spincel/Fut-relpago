@@ -74,7 +74,7 @@ export const PublicTeamsDirectory: React.FC<PublicTeamsDirectoryProps> = ({
         </div>
 
         {/* Filter buttons */}
-        <div className="flex items-center gap-1.5 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <button
             onClick={() => setActiveGradeFilter('all')}
             className={`py-1.5 px-3 rounded-md font-medium transition-colors ${
@@ -122,7 +122,7 @@ export const PublicTeamsDirectory: React.FC<PublicTeamsDirectoryProps> = ({
             >
               <div>
                 {/* Header row */}
-                <div className="flex items-center justify-between text-xs mb-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs mb-2">
                   <span className="font-mono text-amber-400 font-bold">{team.folio}</span>
                   
                   {team.status === 'disqualified' ? (
@@ -217,7 +217,7 @@ export const PublicTeamsDirectory: React.FC<PublicTeamsDirectoryProps> = ({
                           </div>
                           <button
                             onClick={() => onOpenDocumentModal(player, team)}
-                            className="p-1 text-slate-400 hover:text-amber-400"
+                            className="min-w-[44px] min-h-[44px] p-2.5 text-slate-400 hover:text-amber-400 flex items-center justify-center shrink-0"
                             title="Ver credencial"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -233,14 +233,14 @@ export const PublicTeamsDirectory: React.FC<PublicTeamsDirectoryProps> = ({
               <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
                 <button
                   onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
-                  className="text-xs text-slate-400 hover:text-white font-medium"
+                  className="min-h-[44px] px-2 text-xs text-slate-400 hover:text-white font-medium"
                 >
                   {isExpanded ? 'Ocultar jugadores' : 'Ver 6 jugadores'}
                 </button>
 
                 <button
                   onClick={() => onOpenGameSheetModal(team)}
-                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold text-xs rounded border border-slate-700 transition-colors flex items-center gap-1"
+                  className="min-h-[44px] px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold text-xs rounded border border-slate-700 transition-colors flex items-center gap-1"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Cédula</span>
