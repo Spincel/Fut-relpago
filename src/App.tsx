@@ -8,7 +8,6 @@ import { PublicTeamsDirectory } from './components/PublicTeamsDirectory';
 import { FixtureGenerator } from './components/FixtureGenerator';
 import { DocumentViewerModal } from './components/DocumentViewerModal';
 import { OfficialGameSheetModal } from './components/OfficialGameSheetModal';
-import { GitSyncModal } from './components/GitSyncModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { Team, Player } from './types/tournament';
 import { loadTeamsFromStorage, saveTeamsToStorage } from './utils/storage';
@@ -41,7 +40,6 @@ export default function App() {
     team: null,
   });
 
-  const [gitModalOpen, setGitModalOpen] = useState(false);
   const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
   const [newlyRegisteredTeam, setNewlyRegisteredTeam] = useState<Team | null>(null);
 
@@ -156,7 +154,6 @@ export default function App() {
           setIsAdmin(false);
           setCurrentTab('bases');
         }}
-        onOpenGitModal={() => setGitModalOpen(true)}
         totalTeamsCount={teams.length}
       />
 
@@ -403,12 +400,6 @@ export default function App() {
         team={gameSheetModal.team}
         isOpen={gameSheetModal.isOpen}
         onClose={() => setGameSheetModal({ isOpen: false, team: null })}
-      />
-
-      {/* Modal: GitHub Sync guidance */}
-      <GitSyncModal
-        isOpen={gitModalOpen}
-        onClose={() => setGitModalOpen(false)}
       />
 
       {/* Modal: Admin Protected Login for Axel */}

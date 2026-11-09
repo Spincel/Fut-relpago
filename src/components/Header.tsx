@@ -1,12 +1,11 @@
 import React from 'react';
-import { ShieldCheck, LogOut, Trophy, GitBranch } from 'lucide-react';
+import { ShieldCheck, LogOut, Trophy } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: 'bases' | 'registro' | 'equipos' | 'fixture' | 'admin';
   setCurrentTab: (tab: 'bases' | 'registro' | 'equipos' | 'fixture' | 'admin') => void;
   isAdmin: boolean;
   onLogoutAdmin: () => void;
-  onOpenGitModal: () => void;
   totalTeamsCount: number;
 }
 
@@ -15,7 +14,6 @@ export const Header: React.FC<HeaderProps> = ({
   setCurrentTab,
   isAdmin,
   onLogoutAdmin,
-  onOpenGitModal,
   totalTeamsCount,
 }) => {
   return (
@@ -79,15 +77,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={onOpenGitModal}
-            className="p-2 sm:px-2.5 sm:py-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-900 border border-slate-800 transition-colors flex items-center gap-1.5 text-xs cursor-pointer"
-            title="Sincronizar con GitHub"
-          >
-            <GitBranch className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">GitHub</span>
-          </button>
-
           {/* If Axel is logged in, show his admin banner and logout */}
           {isAdmin && (
             <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 p-1 sm:p-1.5 rounded-xl">
