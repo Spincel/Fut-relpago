@@ -136,7 +136,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
     if (errors.length > 0) {
       setFormErrors(errors);
-      window.scrollTo({ top: 150, behavior: 'smooth' });
+      // La ventana ya no hace scroll (app shell fijo): se desplaza el <main> de la app,
+      // donde vive el formulario, hasta arriba para mostrar los errores de validación.
+      document
+        .querySelector('main.app-scroll-view')
+        ?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
