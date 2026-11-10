@@ -39,7 +39,7 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
     output?: string;
   } | null>(null);
 
-  const [repoUrl, setRepoUrl] = useState('https://github.com/Spincel/Fut-relpago');
+  const [repoUrl, setRepoUrl] = useState('https://github.com/Spincel/T-fut');
 
   const COMMAND_BLOCK = `git remote set-url origin ${repoUrl}.git || git remote add origin ${repoUrl}.git
 git branch -M main
@@ -165,14 +165,14 @@ git push -u origin main --force`;
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setRepoUrl('https://github.com/Spincel/Fut-relpago')}
+              onClick={() => setRepoUrl('https://github.com/Spincel/T-fut')}
               className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-mono font-bold transition-all border ${
-                repoUrl.includes('Fut-relpago')
+                repoUrl.includes('T-fut') || repoUrl.includes('Fut-relpago')
                   ? 'bg-amber-500/15 border-amber-500 text-amber-300'
                   : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
               }`}
             >
-              ⭐ Spincel/Fut-relpago (Vercel)
+              ⭐ Spincel/T-fut (Vercel)
             </button>
             <button
               type="button"
