@@ -15,6 +15,8 @@ import {
   saveTeamsToStorage,
   loadFixtureFromStorage,
   saveFixtureToStorage,
+  fetchTeamsFromCloud,
+  fetchMatchesFromCloud,
 } from './utils/storage';
 import { generateCaptainToAxelLink } from './utils/whatsappHelper';
 import { generateTeamPosterDataUrl } from './utils/posterGenerator';
@@ -70,14 +72,62 @@ export default function App() {
     mainScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }, [currentTab]);
 
-  // Load teams and fixtures from persistent storage on mount
+  // Load teams and fixtures from persistent storage on mount & sync with cloud
   useEffect(() => {
+    // 1. Carga inmediata de caché local (para velocidad instantánea)
     const loadedTeams = loadTeamsFromStorage();
     setTeams(loadedTeams);
     const loadedMatches = loadFixtureFromStorage();
     setMatches(loadedMatches);
     setIsLoaded(true);
+
+    // 2. Sincronización en la nube (Vercel KV / Cloud Sync)
+    const syncWithCloud = async () => {
+      try {
+        const cloudTeams = await fetchTeamsFromCloud();
+        if (cloudTeams && Array.isArray(cloudTeams) && cloudTeams.length > 0) {
+          setTeams(cloudTeams);
+        }
+        const cloudMatches = await fetchMatchesFromCloud();
+        if (cloudMatches && Array.isArray(cloudMatches) && cloudMatches.length > 0) {
+          setMatches(cloudMatches);
+        }
+      } catch (err) {
+        // Silently use local cache if offline or cloud not yet linked
+      }
+    };
+
+    syncWithCloud();
+
+    // Sincronización periódica cada 12 segundos y al volver a la pestaña
+    const interval = setInterval(syncWithCloud, 12000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncWithCloud();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
+
+  // Temporizador para abrir WhatsApp después de disfrutar la animación de fútbol
+  useEffect(() => {
+    if (celebrationTeam) {
+      const timer = setTimeout(() => {
+        try {
+          const waUrl = generateCaptainToAxelLink(celebrationTeam);
+          window.open(waUrl, '_blank');
+        } catch (_err) {
+          // El usuario también tiene el botón visible en pantalla
+        }
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [celebrationTeam]);
 
   const handleUpdateTeams = (updated: Team[]) => {
     setTeams(updated);
@@ -115,15 +165,7 @@ export default function App() {
       console.error('Error al descargar póster automáticamente', err);
     }
 
-    // 3. Abrir automáticamente WhatsApp con mensaje predefinido para Axel (311 521 9149)
-    try {
-      const waUrl = generateCaptainToAxelLink(teamToSave);
-      window.open(waUrl, '_blank');
-    } catch (err) {
-      console.error('Error al abrir WhatsApp', err);
-    }
-
-    // 4. Activar animación festiva de fútbol
+    // 3. Activar animación festiva de fútbol (WhatsApp se abre automáticamente tras 2.5s)
     setCelebrationTeam(teamToSave);
     setPendingTeam(null);
   };
@@ -528,15 +570,27 @@ export default function App() {
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Cédula oficial descargada en tu dispositivo (.PNG)</span>
                 </div>
-                <div className="flex items-center gap-2 text-emerald-400 font-bold">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>WhatsApp abierto para notificar a Axel (311 521 9149)</span>
+                <div className="flex items-center gap-2 text-amber-400 font-bold">
+                  <MessageCircle className="w-4 h-4 shrink-0" />
+                  <span>Abriendo WhatsApp automáticamente para Axel (311 521 9149)...</span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-300 pt-0.5 border-t border-slate-800/80">
                   <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>Folio Oficial: <strong className="font-mono text-amber-400">{celebrationTeam.folio}</strong></span>
                 </div>
               </div>
+
+              {/* Botón para abrir WhatsApp al instante */}
+              <a
+                href={generateCaptainToAxelLink(celebrationTeam)}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>NOTIFICAR A AXEL POR WHATSAPP (311 521 9149)</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
 
               {/* Respaldo por si el navegador bloqueó la descarga automática */}
               <div className="text-[11px] text-slate-400">

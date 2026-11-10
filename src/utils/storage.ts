@@ -24,14 +24,48 @@ export function saveTeamsToStorage(teams: Team[]): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+    // Sincronizar automáticamente en la nube (Vercel KV)
+    saveTeamsToCloud(teams).catch(() => {});
   } catch (e) {
     console.error('Error saving teams to storage:', e);
+  }
+}
+
+export async function fetchTeamsFromCloud(): Promise<Team[] | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/api/teams', { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.configured && Array.isArray(data.teams)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.teams));
+      return data.teams;
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function saveTeamsToCloud(teams: Team[]): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const res = await fetch('/api/teams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teams }),
+    });
+    const data = await res.json();
+    return !!data.configured;
+  } catch (err) {
+    return false;
   }
 }
 
 export function resetTeamsToDefault(): Team[] {
   if (typeof window !== 'undefined') {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+    saveTeamsToCloud([]).catch(() => {});
   }
   return [];
 }
@@ -49,10 +83,43 @@ export function loadFixtureFromStorage(): TournamentMatch[] {
   }
 }
 
+export async function fetchMatchesFromCloud(): Promise<TournamentMatch[] | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/api/matches', { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.configured && Array.isArray(data.matches)) {
+      localStorage.setItem(FIXTURE_STORAGE_KEY, JSON.stringify(data.matches));
+      return data.matches;
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function saveMatchesToCloud(matches: TournamentMatch[]): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const res = await fetch('/api/matches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ matches }),
+    });
+    const data = await res.json();
+    return !!data.configured;
+  } catch (err) {
+    return false;
+  }
+}
+
 export function saveFixtureToStorage(matches: TournamentMatch[]): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(FIXTURE_STORAGE_KEY, JSON.stringify(matches));
+    // Sincronizar automáticamente en la nube (Vercel KV)
+    saveMatchesToCloud(matches).catch(() => {});
   } catch (e) {
     console.error('Error saving fixture:', e);
   }
