@@ -71,18 +71,23 @@ Por favor responde a este mensaje para ayudarte a corregirlo. ¡Saludos!`;
   return `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
 }
 
+export const ORGANIZER_PHONE = '523115219149'; // Axel Javier González Salas: 311 521 9149
+
 /**
  * Mensaje del capitán hacia Axel al terminar de registrarse
  */
 export function generateCaptainToAxelLink(team: Team): string {
-  const message = `¡Hola Axel Javier! ⚽ Te comparto el registro de mi equipo *${team.name}* para el Torneo Relámpago de Fútbol del Jueves 12 de Noviembre.
+  const message = `¡Hola Axel Javier! ⚽🏆 Te comparto la ficha de registro de mi equipo *${team.name}* para el Torneo Relámpago de Fútbol del Jueves 12 de Noviembre.
 
-Folio oficial: *${team.folio}*
-Capitán: *${team.captain.fullName}*
-Uniforme: *${team.uniformColor}*
-Plantilla: 6 jugadores listos (2 de 3º, 2 de 2º y 2 de 1er año).
+📋 *Folio Oficial:* ${team.folio}
+👑 *Capitán:* ${team.captain.fullName}
+📱 *WhatsApp de contacto:* ${team.captain.phone}
+👕 *Uniforme:* ${team.uniformColor}
 
-¡Ya tenemos lista la cédula de juego para cotejarla contigo!`;
+👥 *Plantilla Oficial (Regla 2-2-2):*
+${team.players.map((p, idx) => `· ${idx + 1}. ${p.fullName} (${p.grade}º Año)`).join('\n')}
 
-  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+¡Ya descargamos nuestra imagen oficial del equipo y quedamos a la espera del sorteo! 🎉`;
+
+  return `https://wa.me/${ORGANIZER_PHONE}?text=${encodeURIComponent(message)}`;
 }

@@ -7,7 +7,6 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { AdminPanel } from './components/AdminPanel';
 import { PublicTeamsDirectory } from './components/PublicTeamsDirectory';
 import { FixtureGenerator } from './components/FixtureGenerator';
-import { OfficialGameSheetModal } from './components/OfficialGameSheetModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { InstallAppModal } from './components/InstallAppModal';
 import { Team, TournamentMatch } from './types/tournament';
@@ -18,7 +17,8 @@ import {
   saveFixtureToStorage,
 } from './utils/storage';
 import { generateCaptainToAxelLink } from './utils/whatsappHelper';
-import { Trophy, Printer, ArrowRight, MessageCircle, ExternalLink, Lock } from 'lucide-react';
+import { generateTeamPosterDataUrl } from './utils/posterGenerator';
+import { Trophy, Download, ArrowRight, MessageCircle, ExternalLink, Lock } from 'lucide-react';
 
 export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -26,15 +26,6 @@ export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentTab, setCurrentTab] = useState<TournamentTab>('inicio');
   const [isAdmin, setIsAdmin] = useState(false);
-
-  // Modals state
-  const [gameSheetModal, setGameSheetModal] = useState<{
-    isOpen: boolean;
-    team: Team | null;
-  }>({
-    isOpen: false,
-    team: null,
-  });
 
   const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
   const [newlyRegisteredTeam, setNewlyRegisteredTeam] = useState<Team | null>(null);
@@ -248,113 +239,84 @@ export default function App() {
         teamsCount={teams.length}
       />
 
-      {/* Registration Success Dialog */}
-      {newlyRegisteredTeam && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-slate-900 border-t-2 sm:border-2 border-amber-500/50 rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
-            
-            {/* Mobile drag handle */}
-            <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto sm:hidden -mt-1 mb-2" />
+      {/* Registration Success Dialog with Generated Poster Image */}
+      {newlyRegisteredTeam && (() => {
+        const posterUrl = generateTeamPosterDataUrl(newlyRegisteredTeam);
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="w-full max-w-lg bg-slate-900 border-t-2 sm:border-2 border-amber-500/50 rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 space-y-3.5 max-h-[92dvh] overflow-y-auto no-scrollbar">
+              
+              {/* Mobile drag handle */}
+              <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto sm:hidden -mt-1 mb-1" />
 
-            <div className="text-center space-y-1.5">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto text-2xl">
-                ⚽
+              <div className="text-center space-y-1">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto text-xl">
+                  ⚽
+                </div>
+                <h3 className="font-display text-lg sm:text-xl font-black text-white">
+                  ¡Equipo Registrado con Éxito!
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Se generó la imagen oficial de tu equipo para el Torneo Relámpago.
+                </p>
               </div>
-              <h3 className="font-display text-xl sm:text-2xl font-black text-white">
-                ¡Equipo Registrado con Éxito!
-              </h3>
-              <p className="text-xs text-slate-300">
-                Se generó tu Ficha Oficial de Inscripción para el Torneo Relámpago.
-              </p>
-            </div>
 
-            {/* Official Card Details */}
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                <span className="text-slate-400 font-semibold uppercase text-[10px]">Folio Oficial:</span>
-                <span className="font-mono text-base font-black text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-lg">
-                  {newlyRegisteredTeam.folio}
-                </span>
+              {/* Poster Preview */}
+              <div className="rounded-2xl overflow-hidden border-2 border-amber-500/40 bg-slate-950 shadow-2xl p-1.5 flex items-center justify-center max-h-[340px]">
+                <img
+                  src={posterUrl}
+                  alt={`Ficha Oficial del Equipo ${newlyRegisteredTeam.name}`}
+                  className="w-full max-h-[320px] object-contain rounded-xl"
+                />
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Equipo:</span>
-                <span className="font-bold text-white">{newlyRegisteredTeam.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Color Uniforme:</span>
-                <span className="text-amber-400 font-bold">{newlyRegisteredTeam.uniformColor}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Capitán:</span>
-                <span className="text-slate-200">{newlyRegisteredTeam.captain.fullName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">WhatsApp Registrado:</span>
-                <span className="text-emerald-400 font-mono font-bold">{newlyRegisteredTeam.captain.phone}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Plantilla:</span>
-                <span className="text-amber-400 font-bold">6 Jugadores (2 de 3º, 2 de 2º y 2 de 1º)</span>
-              </div>
-            </div>
 
-            {/* Action 1: Send via WhatsApp to Axel */}
-            <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-600/40 space-y-2">
-              <span className="text-xs font-bold text-emerald-300 block flex items-center gap-1.5">
-                <MessageCircle className="w-4 h-4 text-emerald-400" />
-                Paso 1: Notificar a Axel Javier por WhatsApp
-              </span>
-              <p className="text-[11px] text-slate-300">
-                Toca aquí para mandar tu registro directamente al WhatsApp de Axel:
-              </p>
+              {/* Botón Principal: Descargar Imagen (PNG) */}
               <a
-                href={generateCaptainToAxelLink(newlyRegisteredTeam)}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-3 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                href={posterUrl}
+                download={`Ficha_TorneoRelampago_${newlyRegisteredTeam.name.replace(/\s+/g, '_')}.png`}
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span>Enviar Ficha por WhatsApp a Axel</span>
-                <ExternalLink className="w-3.5 h-3.5" />
+                <Download className="w-4 h-4 text-slate-950" />
+                <span>DESCARGAR IMAGEN DEL EQUIPO (PNG)</span>
               </a>
-            </div>
 
-            {/* Action 2: Download / Print Ficha */}
-            <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
-              <button
-                onClick={() => {
-                  const t = newlyRegisteredTeam;
-                  setNewlyRegisteredTeam(null);
-                  setGameSheetModal({ isOpen: true, team: t });
-                }}
-                className="w-full sm:w-auto flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Descargar / Imprimir Ficha Oficial</span>
-              </button>
+              {/* WhatsApp Notification to Axel at 311 521 9149 */}
+              <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-600/40 space-y-1.5">
+                <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                  <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  Notificar a Axel por WhatsApp (311 521 9149)
+                </span>
+                <p className="text-[11px] text-slate-300">
+                  Toca aquí para enviar tu registro directamente al organizador Axel Javier:
+                </p>
+                <a
+                  href={generateCaptainToAxelLink(newlyRegisteredTeam)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Enviar Registro a Axel (311 521 9149)</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
 
+              {/* Botón Cerrar y Ver Equipos */}
               <button
                 onClick={() => {
                   setNewlyRegisteredTeam(null);
                   setCurrentTab('equipos');
                 }}
-                className="w-full sm:w-auto px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <span>Ver Equipos</span>
+                <span>Cerrar y Ver Equipos Registrados</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+
             </div>
-
           </div>
-        </div>
-      )}
-
-      {/* Modal: Official Printable Game Sheet */}
-      <OfficialGameSheetModal
-        team={gameSheetModal.team}
-        isOpen={gameSheetModal.isOpen}
-        onClose={() => setGameSheetModal({ isOpen: false, team: null })}
-      />
+        );
+      })()}
 
       {/* Modal: Admin Protected Login for Axel */}
       <AdminLoginModal

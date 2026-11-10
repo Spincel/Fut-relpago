@@ -40,6 +40,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [customColor, setCustomColor] = useState('');
   const [captainName, setCaptainName] = useState('');
   const [captainPhone, setCaptainPhone] = useState('');
+  const [captainGrade, setCaptainGrade] = useState<GradeYear>(3);
 
   // 6 Players strictly divided: 2 of 3rd year, 2 of 2nd year, 2 of 1st year
   const [players, setPlayers] = useState<SimplePlayer[]>([
@@ -57,7 +58,45 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   // Check if team name is already taken
   const teamNameIsDuplicate = isTeamNameTaken(teamName, existingTeams);
 
+  // Calcula el índice del jugador que corresponde al capitán según su grado
+  const getCaptainPlayerIndex = (grade: GradeYear) => {
+    return grade === 3 ? 0 : grade === 2 ? 2 : 4;
+  };
+
+  // Sincroniza el nombre del capitán con la casilla de jugador correspondiente
+  const handleCaptainNameChange = (name: string) => {
+    setCaptainName(name);
+    const targetIdx = getCaptainPlayerIndex(captainGrade);
+    setPlayers((prev) => {
+      const copy = [...prev];
+      copy[targetIdx] = { ...copy[targetIdx], fullName: name, grade: captainGrade };
+      return copy;
+    });
+  };
+
+  // Cambia el grado del capitán y reubica automáticamente su nombre en la plantilla de 6
+  const handleCaptainGradeChange = (newGrade: GradeYear) => {
+    const oldTargetIdx = getCaptainPlayerIndex(captainGrade);
+    const newTargetIdx = getCaptainPlayerIndex(newGrade);
+    setCaptainGrade(newGrade);
+
+    setPlayers((prev) => {
+      const copy = [...prev];
+      // Liberar la casilla anterior si tenía el nombre del capitán
+      if (copy[oldTargetIdx].fullName === captainName) {
+        copy[oldTargetIdx] = { ...copy[oldTargetIdx], fullName: '' };
+      }
+      // Asignar el capitán en la casilla correspondiente a su nuevo grado
+      copy[newTargetIdx] = { ...copy[newTargetIdx], fullName: captainName, grade: newGrade };
+      return copy;
+    });
+  };
+
   const handlePlayerNameChange = (index: number, name: string) => {
+    const captainIdx = getCaptainPlayerIndex(captainGrade);
+    if (index === captainIdx) {
+      setCaptainName(name);
+    }
     setPlayers((prev) => {
       const copy = [...prev];
       copy[index] = { ...copy[index], fullName: name };
@@ -326,36 +365,69 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             />
           </div>
 
-          {/* Captain and WhatsApp */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">
-                Nombre de quien registra *
-              </label>
-              <input
-                type="text"
-                required
-                value={captainName}
-                onChange={(e) => setCaptainName(e.target.value)}
-                placeholder="Nombre del capitán o delegado"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
-              />
+          {/* Captain, Grade and WhatsApp */}
+          <div className="space-y-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Nombre del Capitán / Responsable *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={captainName}
+                  onChange={(e) => handleCaptainNameChange(e.target.value)}
+                  placeholder="Ej. Saúl Pérez"
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Celular / WhatsApp del Capitán *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={captainPhone}
+                  onChange={(e) => setCaptainPhone(e.target.value)}
+                  placeholder="Ej. 311 521 9149"
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400 font-mono"
+                />
+                <span className="text-[10px] text-amber-400 block mt-0.5">
+                  Axel Javier (311 521 9149) confirmará tu registro a este número.
+                </span>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">
-                Celular / WhatsApp *
+            {/* Selector de Grado del Capitán */}
+            <div className="p-3 rounded-xl bg-slate-950 border border-amber-500/30 space-y-1.5">
+              <label className="block text-xs font-bold text-amber-300">
+                ¿De qué año escolar es el Capitán? * (Se asigna automáticamente a la plantilla de 6):
               </label>
-              <input
-                type="tel"
-                required
-                value={captainPhone}
-                onChange={(e) => setCaptainPhone(e.target.value)}
-                placeholder="Ej. 4496600468"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400 font-mono"
-              />
-              <span className="text-[10px] text-amber-400 block mt-0.5">
-                Axel te confirmará tu inscripción por WhatsApp a este número.
+              <div className="grid grid-cols-3 gap-2">
+                {([3, 2, 1] as GradeYear[]).map((g) => {
+                  const isSelected = captainGrade === g;
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => handleCaptainGradeChange(g)}
+                      className={`py-2 px-2 rounded-xl text-xs font-black transition-all border cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                        isSelected
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/40'
+                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <span>🎓</span>
+                      <span>{g}º Año</span>
+                      {isSelected && <span className="text-[11px] font-black">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="text-[10px] text-slate-400 block">
+                💡 Al elegir el año, el capitán se registra en su grado y sólo debes registrar a los 5 compañeros restantes (total 6 personas).
               </span>
             </div>
           </div>
@@ -436,36 +508,56 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
   function renderSimplePlayerRow(index: number, defaultGrade: GradeYear) {
     const player = players[index];
+    const isCaptainSlot = index === getCaptainPlayerIndex(captainGrade);
 
     return (
       <div
         key={index}
-        className="flex items-center gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800"
+        className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
+          isCaptainSlot
+            ? 'bg-amber-950/25 border-amber-500/60 shadow-sm ring-1 ring-amber-500/30'
+            : 'bg-slate-900 border-slate-800'
+        }`}
       >
-        <span className="w-6 h-6 rounded-lg bg-slate-800 text-amber-400 text-xs font-bold font-mono flex items-center justify-center shrink-0">
+        <span
+          className={`w-6 h-6 rounded-lg text-xs font-bold font-mono flex items-center justify-center shrink-0 ${
+            isCaptainSlot ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-amber-400'
+          }`}
+        >
           #{index + 1}
         </span>
 
         {/* Full Name */}
-        <input
-          type="text"
-          required
-          value={player.fullName}
-          onChange={(e) => handlePlayerNameChange(index, e.target.value)}
-          placeholder={`Nombre completo del jugador #${index + 1}`}
-          className="flex-1 min-w-0 px-3 py-2 text-xs bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400"
-        />
+        <div className="flex-1 min-w-0">
+          <input
+            type="text"
+            required
+            value={player.fullName}
+            onChange={(e) => handlePlayerNameChange(index, e.target.value)}
+            placeholder={
+              isCaptainSlot
+                ? `Nombre del Capitán (${defaultGrade}º Año)`
+                : `Nombre del compañero #${index + 1}`
+            }
+            className={`w-full px-3 py-2 text-xs bg-slate-950 border rounded-lg text-white focus:outline-none ${
+              isCaptainSlot
+                ? 'border-amber-500/60 font-semibold focus:border-amber-400'
+                : 'border-slate-700 focus:border-amber-400'
+            }`}
+          />
+        </div>
 
-        {/* Grade selector or badge */}
-        <select
-          value={player.grade}
-          onChange={(e) => handlePlayerGradeChange(index, parseInt(e.target.value, 10) as GradeYear)}
-          className="px-2 py-2 text-xs bg-slate-950 border border-amber-500/40 rounded-lg text-amber-400 font-bold focus:outline-none shrink-0"
-        >
-          <option value={3}>3º Año</option>
-          <option value={2}>2º Año</option>
-          <option value={1}>1º Año</option>
-        </select>
+        {/* Grade or Captain Badge */}
+        {isCaptainSlot ? (
+          <span className="px-2 py-1 text-[11px] font-black rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0 flex items-center gap-1">
+            <span>👑</span>
+            <span>Capitán</span>
+          </span>
+        ) : (
+          <span className="px-2 py-1 text-[11px] font-bold rounded-lg bg-slate-950 border border-slate-800 text-slate-400 shrink-0">
+            {defaultGrade}º Año
+          </span>
+        )}
       </div>
     );
   }
