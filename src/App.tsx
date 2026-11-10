@@ -18,7 +18,19 @@ import {
 } from './utils/storage';
 import { generateCaptainToAxelLink } from './utils/whatsappHelper';
 import { generateTeamPosterDataUrl } from './utils/posterGenerator';
-import { Trophy, Download, ArrowRight, MessageCircle, ExternalLink, Lock } from 'lucide-react';
+import { TeamBadge } from './components/TeamBadge';
+import {
+  Trophy,
+  Download,
+  ArrowRight,
+  MessageCircle,
+  ExternalLink,
+  Lock,
+  Pencil,
+  CheckCircle2,
+  Users,
+  Sparkles,
+} from 'lucide-react';
 
 export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -28,7 +40,8 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
-  const [newlyRegisteredTeam, setNewlyRegisteredTeam] = useState<Team | null>(null);
+  const [pendingTeam, setPendingTeam] = useState<Team | null>(null);
+  const [celebrationTeam, setCelebrationTeam] = useState<Team | null>(null);
   const [installModalOpen, setInstallModalOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const isIos = typeof window !== 'undefined' && /iphone|ipad|ipod/i.test(window.navigator.userAgent);
@@ -77,9 +90,46 @@ export default function App() {
   };
 
   const handleRegisterSuccess = (team: Team) => {
-    const updated = [team, ...teams];
+    // Abre el modal de confirmación y revisión antes de guardar
+    setPendingTeam(team);
+  };
+
+  const handleConfirmRegistration = () => {
+    if (!pendingTeam) return;
+    const teamToSave = pendingTeam;
+
+    // 1. Guardar equipo en almacenamiento y estado
+    const updated = [teamToSave, ...teams];
     handleUpdateTeams(updated);
-    setNewlyRegisteredTeam(team);
+
+    // 2. Descargar automáticamente la imagen oficial (PNG) de la plantilla
+    try {
+      const posterUrl = generateTeamPosterDataUrl(teamToSave);
+      const link = document.createElement('a');
+      link.href = posterUrl;
+      link.download = `Ficha_TorneoRelampago_${teamToSave.name.replace(/\s+/g, '_')}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error al descargar póster automáticamente', err);
+    }
+
+    // 3. Abrir automáticamente WhatsApp con mensaje predefinido para Axel (311 521 9149)
+    try {
+      const waUrl = generateCaptainToAxelLink(teamToSave);
+      window.open(waUrl, '_blank');
+    } catch (err) {
+      console.error('Error al abrir WhatsApp', err);
+    }
+
+    // 4. Activar animación festiva de fútbol
+    setCelebrationTeam(teamToSave);
+    setPendingTeam(null);
+  };
+
+  const handleEditRegistration = () => {
+    setPendingTeam(null);
   };
 
   if (!isLoaded) {
@@ -239,78 +289,278 @@ export default function App() {
         teamsCount={teams.length}
       />
 
-      {/* Registration Success Dialog with Generated Poster Image */}
-      {newlyRegisteredTeam && (() => {
-        const posterUrl = generateTeamPosterDataUrl(newlyRegisteredTeam);
+      {/* =========================================================================
+          MODAL 1: REVISIÓN Y CONFIRMACIÓN PREVIA DEL EQUIPO
+          Muestra escudo, nombre, colores, lista de 6 jugadores por grado y la imagen
+          ========================================================================= */}
+      {pendingTeam && (() => {
+        const posterUrl = generateTeamPosterDataUrl(pendingTeam);
+        const p3 = pendingTeam.players.filter((p) => p.grade === 3);
+        const p2 = pendingTeam.players.filter((p) => p.grade === 2);
+        const p1 = pendingTeam.players.filter((p) => p.grade === 1);
+        const captainNameLower = pendingTeam.captain.fullName.toLowerCase().trim();
+
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="w-full max-w-lg bg-slate-900 border-t-2 sm:border-2 border-amber-500/50 rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 space-y-3.5 max-h-[92dvh] overflow-y-auto no-scrollbar">
+            <div className="w-full max-w-lg bg-slate-900 border-t-2 sm:border-2 border-amber-500/60 rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 sm:p-5 space-y-3.5 max-h-[92dvh] overflow-y-auto no-scrollbar">
               
               {/* Mobile drag handle */}
               <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto sm:hidden -mt-1 mb-1" />
 
-              <div className="text-center space-y-1">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto text-xl">
-                  ⚽
+              {/* Encabezado con botón de edición */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center text-lg">
+                    ⚽
+                  </div>
+                  <div>
+                    <h3 className="font-display text-sm sm:text-base font-black text-white leading-tight">
+                      Confirma los Datos de tu Equipo
+                    </h3>
+                    <p className="text-[11px] text-amber-400 font-medium">
+                      Verifica la plantilla y tu escudo antes de confirmar
+                    </p>
+                  </div>
                 </div>
-                <h3 className="font-display text-lg sm:text-xl font-black text-white">
-                  ¡Equipo Registrado con Éxito!
-                </h3>
-                <p className="text-xs text-slate-300">
-                  Se generó la imagen oficial de tu equipo para el Torneo Relámpago.
-                </p>
-              </div>
 
-              {/* Poster Preview */}
-              <div className="rounded-2xl overflow-hidden border-2 border-amber-500/40 bg-slate-950 shadow-2xl p-1.5 flex items-center justify-center max-h-[340px]">
-                <img
-                  src={posterUrl}
-                  alt={`Ficha Oficial del Equipo ${newlyRegisteredTeam.name}`}
-                  className="w-full max-h-[320px] object-contain rounded-xl"
-                />
-              </div>
-
-              {/* Botón Principal: Descargar Imagen (PNG) */}
-              <a
-                href={posterUrl}
-                download={`Ficha_TorneoRelampago_${newlyRegisteredTeam.name.replace(/\s+/g, '_')}.png`}
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Download className="w-4 h-4 text-slate-950" />
-                <span>DESCARGAR IMAGEN DEL EQUIPO (PNG)</span>
-              </a>
-
-              {/* WhatsApp Notification to Axel at 311 521 9149 */}
-              <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-600/40 space-y-1.5">
-                <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                  <MessageCircle className="w-4 h-4 text-emerald-400" />
-                  Notificar a Axel por WhatsApp (311 521 9149)
-                </span>
-                <p className="text-[11px] text-slate-300">
-                  Toca aquí para enviar tu registro directamente al organizador Axel Javier:
-                </p>
-                <a
-                  href={generateCaptainToAxelLink(newlyRegisteredTeam)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                <button
+                  type="button"
+                  onClick={handleEditRegistration}
+                  className="px-2.5 py-1 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 flex items-center gap-1 cursor-pointer transition-all active:scale-95 shrink-0"
                 >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Enviar Registro a Axel (311 521 9149)</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <Pencil className="w-3 h-3 text-amber-400" />
+                  <span>Editar</span>
+                </button>
+              </div>
+
+              {/* 1. Nombre del Equipo, Escudo y Colores */}
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/40 flex items-center gap-3">
+                <TeamBadge
+                  badge={pendingTeam.badge}
+                  fallbackColor={pendingTeam.uniformColor}
+                  teamName={pendingTeam.name}
+                  size={54}
+                  className="shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                    Equipo a Inscribir:
+                  </span>
+                  <h4 className="font-display font-black text-base text-white truncate leading-tight">
+                    {pendingTeam.name}
+                  </h4>
+                  <span className="text-xs font-bold text-amber-400 block mt-0.5 truncate">
+                    👕 {pendingTeam.uniformColor}
+                  </span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5 truncate">
+                    👑 Capitán: <strong className="text-slate-200">{pendingTeam.captain.fullName}</strong> · 📱 {pendingTeam.captain.phone}
+                  </span>
+                </div>
+              </div>
+
+              {/* 2. Lista de Jugadores Registrados por Grado (Antes de la imagen) */}
+              <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+                  <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Integrantes Registrados (6 de 6)</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    Regla 2-2-2
+                  </span>
+                </div>
+
+                {/* 3er Año */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
+                    🎓 3er Año (2 Requeridos):
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {p3.map((p, i) => {
+                      const isCap = p.fullName.toLowerCase().trim() === captainNameLower;
+                      return (
+                        <div key={p.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-xs flex items-center justify-between gap-1">
+                          <span className="text-white font-medium truncate">
+                            <strong className="text-amber-400 font-mono mr-1">#{i + 1}</strong> {p.fullName}
+                          </span>
+                          {isCap && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
+                              👑 Capitán
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2do Año */}
+                <div className="space-y-1 pt-0.5">
+                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider block">
+                    🎓 2do Año (2 Requeridos):
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {p2.map((p, i) => {
+                      const isCap = p.fullName.toLowerCase().trim() === captainNameLower;
+                      return (
+                        <div key={p.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-xs flex items-center justify-between gap-1">
+                          <span className="text-white font-medium truncate">
+                            <strong className="text-blue-400 font-mono mr-1">#{i + 3}</strong> {p.fullName}
+                          </span>
+                          {isCap && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
+                              👑 Capitán
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 1er Año */}
+                <div className="space-y-1 pt-0.5">
+                  <span className="text-[10px] font-black text-purple-400 uppercase tracking-wider block">
+                    🎓 1er Año (2 Requeridos):
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {p1.map((p, i) => {
+                      const isCap = p.fullName.toLowerCase().trim() === captainNameLower;
+                      return (
+                        <div key={p.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-xs flex items-center justify-between gap-1">
+                          <span className="text-white font-medium truncate">
+                            <strong className="text-purple-400 font-mono mr-1">#{i + 5}</strong> {p.fullName}
+                          </span>
+                          {isCap && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-black rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
+                              👑 Capitán
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Vista Previa de la Ficha Oficial (Después de los nombres) */}
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-slate-400 block">
+                  Vista previa de la Cédula Oficial:
+                </span>
+                <div className="rounded-2xl overflow-hidden border border-amber-500/40 bg-slate-950 p-1 flex items-center justify-center max-h-[200px]">
+                  <img
+                    src={posterUrl}
+                    alt={`Ficha Oficial del Equipo ${pendingTeam.name}`}
+                    className="w-full max-h-[190px] object-contain rounded-xl"
+                  />
+                </div>
+              </div>
+
+              {/* 4. Botones de Acción */}
+              <div className="pt-1.5 space-y-2">
+                <button
+                  type="button"
+                  onClick={handleConfirmRegistration}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-sm rounded-xl transition-all shadow-xl shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <CheckCircle2 className="w-5 h-5 text-slate-950" />
+                  <span>CONFIRMAR EQUIPO</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleEditRegistration}
+                  className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Editar datos del equipo</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* =========================================================================
+          MODAL 2: ANIMACIÓN ESTILO FÚTBOL AL CONFIRMAR
+          "¡Felicidades, Equipo Registrado!" con balón rebotando y confirmación
+          ========================================================================= */}
+      {celebrationTeam && (() => {
+        const posterUrl = generateTeamPosterDataUrl(celebrationTeam);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-lg animate-in zoom-in-95 duration-300 overflow-hidden">
+            
+            {/* Resplandores ambientales de estadio */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <div className="absolute -top-12 left-1/4 w-72 h-72 bg-amber-500/20 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute -bottom-12 right-1/4 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" />
+            </div>
+
+            <div className="relative w-full max-w-md bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-amber-500 rounded-3xl p-6 text-center space-y-4 shadow-2xl shadow-amber-500/25">
+              
+              {/* Balón con animación de fútbol y rebote */}
+              <div className="relative pt-2">
+                <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/30 animate-bounce">
+                  <span className="text-4xl">⚽</span>
+                </div>
+                <div className="absolute top-1 right-1/4 text-2xl animate-spin duration-1000">✨</div>
+                <div className="absolute bottom-1 left-1/4 text-2xl animate-pulse">🎉</div>
+              </div>
+
+              {/* Títulos y Grito de Gol */}
+              <div className="space-y-1">
+                <span className="text-xs font-black uppercase tracking-widest text-amber-400 font-mono px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20 inline-block">
+                  ¡ G O O O O L ! 🥅⚡
+                </span>
+                <h2 className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight leading-tight pt-1">
+                  ¡Felicidades, Equipo Registrado!
+                </h2>
+                <p className="text-sm font-bold text-amber-300">
+                  "{celebrationTeam.name}" está oficialmente en la contienda
+                </p>
+              </div>
+
+              {/* Checklist de acciones automáticas completadas */}
+              <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 text-left space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Cédula oficial descargada en tu dispositivo (.PNG)</span>
+                </div>
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>WhatsApp abierto para notificar a Axel (311 521 9149)</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300 pt-0.5 border-t border-slate-800/80">
+                  <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Folio Oficial: <strong className="font-mono text-amber-400">{celebrationTeam.folio}</strong></span>
+                </div>
+              </div>
+
+              {/* Respaldo por si el navegador bloqueó la descarga automática */}
+              <div className="text-[11px] text-slate-400">
+                ¿No se descargó la imagen?{' '}
+                <a
+                  href={posterUrl}
+                  download={`Ficha_TorneoRelampago_${celebrationTeam.name.replace(/\s+/g, '_')}.png`}
+                  className="text-amber-400 underline font-bold"
+                >
+                  Toca aquí para descargar manualmente
                 </a>
               </div>
 
-              {/* Botón Cerrar y Ver Equipos */}
+              {/* Botón para continuar a la app */}
               <button
+                type="button"
                 onClick={() => {
-                  setNewlyRegisteredTeam(null);
+                  setCelebrationTeam(null);
                   setCurrentTab('equipos');
                 }}
-                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-4 px-6 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm rounded-2xl shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all"
               >
-                <span>Cerrar y Ver Equipos Registrados</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>VER EQUIPOS REGISTRADOS Y ROL</span>
+                <ArrowRight className="w-4 h-4 text-slate-950" />
               </button>
 
             </div>

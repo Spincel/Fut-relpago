@@ -724,7 +724,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             className="flex-2 min-h-[48px] py-3.5 px-6 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95"
           >
             <CheckCircle2 className="w-5 h-5 text-slate-950" />
-            <span>REGISTRAR EQUIPO AHORA</span>
+            <span>CONTINUAR Y CONFIRMAR EQUIPO</span>
             <ArrowRight className="w-4 h-4 text-slate-950" />
           </button>
         </div>
