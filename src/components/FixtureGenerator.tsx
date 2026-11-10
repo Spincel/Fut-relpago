@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Calendar, Search, Trophy, CheckCircle2, X, Users, MapPin, Clock, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Search, Trophy, CheckCircle2, X, Users, MapPin, Clock, Download, MessageCircle, Maximize2, Image as ImageIcon } from 'lucide-react';
 import { Team, TournamentMatch } from '../types/tournament';
 import { getUniformColors } from '../utils/colorHelper';
 import { TeamBadge } from './TeamBadge';
 import { generateFixturePosterDataUrl } from '../utils/posterGenerator';
+import { generateWhatsAppFixtureBroadcastLink } from '../utils/whatsappHelper';
 
 interface FixtureGeneratorProps {
   teams: Team[];
@@ -17,25 +18,36 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
 }) => {
   const [searchTeam, setSearchTeam] = useState('');
   const [downloadingPoster, setDownloadingPoster] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'poster'>('cards');
+  const [posterUrl, setPosterUrl] = useState<string>('');
+  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
 
-  const handleDownloadPoster = async () => {
-    if (matches.length === 0) return;
-    setDownloadingPoster(true);
-    try {
-      const dataUrl = await generateFixturePosterDataUrl(matches, teams);
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `Rol_De_Juegos_Torneo_Relampago_${new Date().toISOString().slice(0, 10)}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error('Error generating fixture poster', err);
-    } finally {
-      setDownloadingPoster(false);
+  // Generar URL del póster en cuanto haya enfrentamientos
+  useEffect(() => {
+    if (matches.length > 0) {
+      try {
+        const url = generateFixturePosterDataUrl(matches, teams);
+        setPosterUrl(url);
+      } catch (err) {
+        console.error('Error generating fixture poster:', err);
+      }
+    } else {
+      setPosterUrl('');
     }
+  }, [matches, teams]);
+
+  const handleDownloadPoster = () => {
+    const targetUrl = posterUrl || (matches.length > 0 ? generateFixturePosterDataUrl(matches, teams) : '');
+    if (!targetUrl) return;
+
+    const link = document.createElement('a');
+    link.href = targetUrl;
+    link.download = `Rol_De_Juegos_Torneo_Relampago_${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Search for the user's specific team match
@@ -76,12 +88,11 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={handleDownloadPoster}
-              disabled={downloadingPoster}
               className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer whitespace-nowrap shrink-0"
               title="Descargar imagen oficial del rol con todos los enfrentamientos"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>{downloadingPoster ? 'Generando...' : 'Descargar Rol (.png)'}</span>
+              <span>Descargar Póster (.PNG)</span>
             </button>
 
             <div className="relative flex-1 sm:w-64">
@@ -105,6 +116,98 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
           </div>
         )}
       </div>
+
+      {/* VIEW MODE TOGGLE (LISTA VS PÓSTER OFICIAL) */}
+      {matches.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                viewMode === 'cards'
+                  ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Partidos ({matches.length})</span>
+            </button>
+
+            <button
+              onClick={() => setViewMode('poster')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                viewMode === 'poster'
+                  ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Póster Oficial</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <a
+              href={generateWhatsAppFixtureBroadcastLink(matches, teams)}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="Compartir rol de partidos por WhatsApp"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>Difundir en WhatsApp</span>
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* PÓSTER VIEW MODE */}
+      {matches.length > 0 && viewMode === 'poster' && (
+        <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border-2 border-amber-500/40 p-4 sm:p-5 space-y-3.5 shadow-2xl flex flex-col items-center animate-in fade-in duration-300">
+          <div className="w-full flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-400" />
+              <span className="font-display font-black text-sm text-white">
+                Póster Oficial de Enfrentamientos
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadPoster}
+                className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-lg flex items-center gap-1 shadow cursor-pointer active:scale-95"
+              >
+                <Download className="w-3 h-3" />
+                <span>Descargar PNG</span>
+              </button>
+              <button
+                onClick={() => setIsPosterModalOpen(true)}
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg cursor-pointer"
+                title="Pantalla completa"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {posterUrl ? (
+            <img
+              src={posterUrl}
+              alt="Póster Oficial del Torneo"
+              className="max-h-[580px] w-auto rounded-xl shadow-2xl border border-amber-500/30 cursor-pointer object-contain hover:opacity-95 transition-opacity"
+              onClick={() => setIsPosterModalOpen(true)}
+              title="Clic para ampliar en pantalla completa"
+            />
+          ) : (
+            <div className="py-12 text-slate-400 text-xs text-center">
+              Generando diseño del póster...
+            </div>
+          )}
+
+          <p className="text-[11px] text-slate-400 text-center">
+            🔍 Toca la imagen para verla en pantalla completa o usa el botón dorado para guardarla en tu galería.
+          </p>
+        </div>
+      )}
 
       {/* HIGHLIGHT SEARCH RESULT: Contra quién juega tu equipo */}
       {searchTeam.trim() && userTeamMatches.length > 0 && (
@@ -224,7 +327,7 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
             <span>{teams.length} Equipos registrados hasta el momento</span>
           </div>
         </div>
-      ) : (
+      ) : viewMode === 'cards' ? (
         /* STATE 2: FULL SCHEDULE LIST */
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs text-slate-400 px-1">
@@ -330,6 +433,41 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+      ) : null}
+
+      {/* FULLSCREEN POSTER MODAL LIGHTBOX */}
+      {isPosterModalOpen && posterUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+          <div className="w-full max-w-3xl flex items-center justify-between mb-3">
+            <span className="text-white font-display font-black text-sm flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-400" />
+              Póster Oficial de Enfrentamientos
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadPoster}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow flex items-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Descargar PNG</span>
+              </button>
+              <button
+                onClick={() => setIsPosterModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-800 hover:bg-slate-700 transition-colors cursor-pointer"
+                title="Cerrar vista previa"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <div className="max-h-[82vh] overflow-y-auto rounded-2xl border-2 border-amber-500/40 shadow-2xl bg-slate-950 p-1 flex justify-center">
+            <img
+              src={posterUrl}
+              alt="Póster Oficial en Alta Resolución"
+              className="max-w-full h-auto object-contain rounded-xl"
+            />
           </div>
         </div>
       )}

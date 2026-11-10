@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -18,10 +18,16 @@ import {
   Search,
   Check,
   X,
+  Maximize2,
 } from 'lucide-react';
 import { Team, Player, TournamentMatch, GradeYear, PlayerPosition } from '../types/tournament';
 import { evaluateTeamRules, findTeamDuplicatePlayers, canSubstitutePlayer } from '../utils/rulesValidator';
-import { generateWhatsAppApprovalLink, generateWhatsAppDuplicatePlayerLink, generateWhatsAppObservationsLink } from '../utils/whatsappHelper';
+import {
+  generateWhatsAppApprovalLink,
+  generateWhatsAppDuplicatePlayerLink,
+  generateWhatsAppObservationsLink,
+  generateWhatsAppFixtureBroadcastLink,
+} from '../utils/whatsappHelper';
 import { exportTeamsToCSV, deleteTeamFromCloud } from '../utils/storage';
 import { generateTeamPosterDataUrl, generateFixturePosterDataUrl } from '../utils/posterGenerator';
 import { SorteoLiveStudio } from './SorteoLiveStudio';
@@ -62,13 +68,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [subPosition, setSubPosition] = useState<PlayerPosition>('Medio');
   const [subJersey, setSubJersey] = useState('10');
   const [subError, setSubError] = useState<string | null>(null);
+  const [fixturePosterUrl, setFixturePosterUrl] = useState<string>('');
+  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
 
   // Metrics
   const approvedTeams = teams.filter((t) => t.status === 'approved');
   const pendingTeams = teams.filter((t) => t.status !== 'approved' && t.status !== 'disqualified');
 
-  // Handle Team Authorization
+  // Generate Fixture Poster whenever matches change
+  useEffect(() => {
+    if (matches.length > 0) {
+      try {
+        const url = generateFixturePosterDataUrl(matches, teams);
+        setFixturePosterUrl(url);
+      } catch (err) {
+        console.error('Error generating fixture poster:', err);
+      }
+    } else {
+      setFixturePosterUrl('');
+    }
+  }, [matches, teams]);
+
+  // Handle Team Authorization: Aprueba el equipo Y abre WhatsApp automáticamente con el mensaje oficial
   const handleApproveTeam = (teamId: string) => {
+    const targetTeam = teams.find((t) => t.id === teamId);
     const updated = teams.map((t) => {
       if (t.id === teamId) {
         return {
@@ -89,6 +112,115 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return t;
     });
     onUpdateTeams(updated);
+
+    // Abrir WhatsApp al capitán notificando que su equipo quedó registrado y aprobado oficialmente
+    if (targetTeam) {
+      const approvedTeam: Team = {
+        ...targetTeam,
+        status: 'approved',
+      };
+      const waUrl = generateWhatsAppApprovalLink(approvedTeam);
+      window.open(waUrl, '_blank');
+    }
+  };
+
+  // Realizar Sorteo Rápido Directo
+  const handleQuickDraw = () => {
+    if (approvedTeams.length < 2) return;
+    const shuffled = [...approvedTeams].sort(() => Math.random() - 0.5);
+    const newMatches: TournamentMatch[] = [];
+
+    if (tournamentFormat === 'eliminacion') {
+      const matchCount = Math.floor(shuffled.length / 2);
+      const roundName =
+        shuffled.length >= 8
+          ? 'Cuartos de Final'
+          : shuffled.length >= 4
+          ? 'Semifinales'
+          : 'Partido Oficial';
+
+      const timeSlots = [
+        '09:00 - 09:35 AM',
+        '09:45 - 10:20 AM',
+        '10:30 - 11:05 AM',
+        '11:15 - 11:50 AM',
+        '12:00 - 12:35 PM',
+      ];
+
+      for (let i = 0; i < matchCount; i++) {
+        const teamA = shuffled[i * 2];
+        const teamB = shuffled[i * 2 + 1];
+        if (teamA && teamB) {
+          newMatches.push({
+            id: `m-draw-${Date.now()}-${i + 1}`,
+            matchNumber: i + 1,
+            round: roundName,
+            teamAId: teamA.id,
+            teamBId: teamB.id,
+            timeSlot: timeSlots[i % timeSlots.length],
+            status: 'programado',
+          });
+        }
+      }
+
+      if (matchCount > 1) {
+        newMatches.push({
+          id: `m-draw-${Date.now()}-final`,
+          matchNumber: matchCount + 1,
+          round: 'Gran Final',
+          teamAId: 'Por Definir',
+          teamBId: 'Por Definir',
+          timeSlot: '12:30 - 01:15 PM',
+          status: 'programado',
+        });
+      }
+    } else {
+      // Fase de grupos
+      const mid = Math.ceil(shuffled.length / 2);
+      const groupA = shuffled.slice(0, mid);
+      const groupB = shuffled.slice(mid);
+      let mNum = 1;
+      for (let i = 0; i < groupA.length; i++) {
+        for (let j = i + 1; j < groupA.length; j++) {
+          newMatches.push({
+            id: `m-group-a-${mNum}`,
+            matchNumber: mNum++,
+            round: 'Fase de Grupos',
+            groupName: 'Grupo A',
+            teamAId: groupA[i].id,
+            teamBId: groupA[j].id,
+            timeSlot: `09:${(mNum * 20).toString().padStart(2, '0')} AM`,
+            status: 'programado',
+          });
+        }
+      }
+      for (let i = 0; i < groupB.length; i++) {
+        for (let j = i + 1; j < groupB.length; j++) {
+          newMatches.push({
+            id: `m-group-b-${mNum}`,
+            matchNumber: mNum++,
+            round: 'Fase de Grupos',
+            groupName: 'Grupo B',
+            teamAId: groupB[i].id,
+            teamBId: groupB[j].id,
+            timeSlot: `10:${(mNum * 15).toString().padStart(2, '0')} AM`,
+            status: 'programado',
+          });
+        }
+      }
+      newMatches.push({
+        id: `m-final-groups`,
+        matchNumber: mNum,
+        round: 'Gran Final',
+        groupName: 'Líder A vs Líder B',
+        teamAId: 'Líder Grupo A',
+        teamBId: 'Líder Grupo B',
+        timeSlot: '12:30 - 01:15 PM',
+        status: 'programado',
+      });
+    }
+
+    onUpdateMatches(newMatches);
   };
 
   // Handle Delete Team
@@ -377,39 +509,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                       {/* Actions Toolbar for Axel */}
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-                        <div className="flex items-center gap-2">
-                          {!isApproved && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {!isApproved ? (
                             <button
                               onClick={() => handleApproveTeam(team.id)}
-                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow flex items-center gap-1.5 cursor-pointer active:scale-95"
+                              className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xs rounded-xl shadow-lg flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                              title="Aprobar este equipo y abrir WhatsApp para notificar al capitán que quedó registrado oficialmente"
                             >
                               <Check className="w-4 h-4" />
-                              <span>Autorizar y Aprobar Equipo</span>
+                              <span>✓ Aprobar y Enviar WhatsApp (Confirmar Registro)</span>
                             </button>
+                          ) : (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 font-bold text-xs rounded-xl flex items-center gap-1.5">
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Equipo Aprobado Oficialmente</span>
+                              </span>
+                              <a
+                                href={generateWhatsAppApprovalLink(team)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-3 py-1.5 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                                title="Reenviar confirmación oficial de registro por WhatsApp al capitán"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>💬 Reenviar WhatsApp (Registro Confirmado)</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
                           )}
-
-                          {/* WhatsApp pre-designed message: Approved team waiting for draw */}
-                          <a
-                            href={generateWhatsAppApprovalLink(team)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-2 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95"
-                            title="Enviar mensaje prediseñado: Tu equipo quedó registrado, espera el sorteo..."
-                          >
-                            <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>WhatsApp: Equipo Aprobado (Espera Sorteo)</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
 
                           {/* Botón para descargar póster oficial del equipo */}
                           <a
                             href={generateTeamPosterDataUrl(team)}
                             download={`Póster_Oficial_${team.name.replace(/\s+/g, '_')}.png`}
-                            className="px-3 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95"
+                            className="px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                             title="Descargar imagen en alta resolución de este equipo para publicarla"
                           >
                             <Download className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Descargar Imagen Póster</span>
+                            <span>Descargar Póster del Equipo</span>
                           </a>
                         </div>
 
@@ -491,29 +629,107 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
               </div>
 
-              {/* Big Draw Studio Trigger */}
-              <div className="pt-2">
-                <button
-                  disabled={approvedTeams.length < 2}
-                  onClick={() => setIsSorteoStudioOpen(true)}
-                  className={`w-full py-4 rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-3 cursor-pointer active:scale-95 transition-all ${
-                    approvedTeams.length >= 2
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-amber-500/25'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  <Sparkles className="w-5 h-5 text-slate-950" />
-                  <span>
-                    {approvedTeams.length >= 2
-                      ? '🎬 ABRIR ESTUDIO DE SORTEO EN VIVO (GRABAR PANTALLA)'
-                      : 'SE REQUIEREN AL MENOS 2 EQUIPOS APROBADOS PARA EL SORTEO'}
-                  </span>
-                </button>
-                <p className="text-[11px] text-slate-400 text-center mt-2">
-                  Genera la tómbola y las animaciones de cruces en pantalla completa para que puedas grabar video con tu teléfono.
+              {/* Big Draw Studio Trigger & Quick Draw Option */}
+              <div className="pt-2 space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    disabled={approvedTeams.length < 2}
+                    onClick={() => setIsSorteoStudioOpen(true)}
+                    className={`py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all ${
+                      approvedTeams.length >= 2
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-amber-500/25'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4 text-slate-950" />
+                    <span>🎬 ESTUDIO EN VIVO (GRABAR PANTALLA)</span>
+                  </button>
+
+                  <button
+                    disabled={approvedTeams.length < 2}
+                    onClick={handleQuickDraw}
+                    className={`py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all ${
+                      approvedTeams.length >= 2
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 shadow-emerald-500/25'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Shuffle className="w-4 h-4 text-slate-950" />
+                    <span>⚡ SORTEO RÁPIDO Y CREAR PÓSTER</span>
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-slate-400 text-center">
+                  Elige el estudio animado para grabar la tómbola con tu celular, o el sorteo rápido para generar los cruces y el póster al instante.
                 </p>
               </div>
             </div>
+
+            {/* PÓSTER OFICIAL DE ENFRENTAMIENTOS (VISTA PREVIA Y DESCARGA) */}
+            {matches.length > 0 && fixturePosterUrl && (
+              <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border-2 border-amber-500/40 p-4 sm:p-5 space-y-3.5 shadow-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                      <Trophy className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-display font-black text-sm sm:text-base text-white">
+                        Póster Oficial de Enfrentamientos (Rol de Juegos)
+                      </h4>
+                      <span className="text-[11px] text-amber-400 font-semibold block">
+                        {matches.length} Partidos Programados · Listo para descargar y compartir en WhatsApp
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={fixturePosterUrl}
+                      download={`Rol_Oficial_Torneo_Relampago_${new Date().toISOString().slice(0, 10)}.png`}
+                      className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                      title="Descargar póster en alta resolución (.png)"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-950" />
+                      <span>Descargar Póster HD (.PNG)</span>
+                    </a>
+
+                    <a
+                      href={generateWhatsAppFixtureBroadcastLink(matches, teams)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                      title="Enviar rol de partidos a grupos de WhatsApp"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Difundir por WhatsApp</span>
+                    </a>
+
+                    <button
+                      onClick={() => setIsPosterModalOpen(true)}
+                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all cursor-pointer"
+                      title="Ver póster en pantalla completa"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Visible Poster Preview */}
+                <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black/60 flex flex-col items-center justify-center p-2.5 sm:p-4">
+                  <img
+                    src={fixturePosterUrl}
+                    alt="Póster Oficial de Enfrentamientos"
+                    className="max-h-96 w-auto rounded-lg shadow-2xl object-contain border border-amber-500/30 cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => setIsPosterModalOpen(true)}
+                    title="Clic para ampliar póster"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-2 text-center">
+                    🔍 Haz clic sobre la imagen para verla en grande o usa el botón dorado para descargar el PNG oficial.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Current Matches & Score Input */}
             {matches.length > 0 && (
@@ -521,25 +737,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
                   <div>
                     <h4 className="font-display font-black text-sm text-white">
-                      Rol Oficial Generado ({matches.length} Partidos)
+                      Marcadores y Resultados en Cancha ({matches.length} Partidos)
                     </h4>
                     <span className="text-[11px] text-slate-400">
-                      Jueves 12 de Noviembre · Horarios y Cruces
+                      Jueves 12 de Noviembre · Registra los goles de cada encuentro
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Botón para que Axel descargue la imagen oficial de los enfrentamientos */}
-                    <a
-                      href={generateFixturePosterDataUrl(matches, teams)}
-                      download="Rol_Oficial_Torneo_Relampago.png"
-                      className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
-                      title="Descargar imagen en alta resolución de todos los enfrentamientos"
-                    >
-                      <Download className="w-3.5 h-3.5 text-slate-950" />
-                      <span>Descargar Rol en Imagen (PNG)</span>
-                    </a>
-
                     <button
                       onClick={() => onUpdateMatches([])}
                       className="text-xs text-rose-400 hover:underline cursor-pointer"
@@ -889,6 +1094,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 Registrar Sustitución
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: VISTA PREVIA FULLSCREEN DEL PÓSTER OFICIAL
+          ========================================================= */}
+      {isPosterModalOpen && fixturePosterUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+          <div className="w-full max-w-3xl flex items-center justify-between mb-3">
+            <span className="text-white font-display font-black text-sm flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-400" />
+              Póster Oficial de Enfrentamientos
+            </span>
+            <div className="flex items-center gap-2">
+              <a
+                href={fixturePosterUrl}
+                download={`Rol_Oficial_Torneo_Relampago_${new Date().toISOString().slice(0, 10)}.png`}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Descargar PNG</span>
+              </a>
+              <button
+                onClick={() => setIsPosterModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-800 hover:bg-slate-700 transition-colors"
+                title="Cerrar vista previa"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <div className="max-h-[82vh] overflow-y-auto rounded-2xl border-2 border-amber-500/40 shadow-2xl bg-slate-950 p-1 flex justify-center">
+            <img
+              src={fixturePosterUrl}
+              alt="Póster Oficial en Alta Resolución"
+              className="max-w-full h-auto object-contain rounded-xl"
+            />
           </div>
         </div>
       )}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Play, CheckCircle2, X, Sparkles, Shuffle, ShieldCheck, Download } from 'lucide-react';
+import { Trophy, Play, CheckCircle2, X, Sparkles, Shuffle, ShieldCheck, Download, MessageCircle } from 'lucide-react';
 import { Team, TournamentMatch } from '../types/tournament';
 import { TeamBadge } from './TeamBadge';
 import { generateFixturePosterDataUrl } from '../utils/posterGenerator';
+import { generateWhatsAppFixtureBroadcastLink } from '../utils/whatsappHelper';
 
 interface SorteoLiveStudioProps {
   isOpen: boolean;
@@ -25,23 +26,33 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
   const [generatedMatches, setGeneratedMatches] = useState<TournamentMatch[]>([]);
   const [revealedCount, setRevealedCount] = useState(0);
   const [downloadingPoster, setDownloadingPoster] = useState(false);
+  const [posterUrl, setPosterUrl] = useState<string>('');
 
-  const handleDownloadPoster = async () => {
-    if (generatedMatches.length === 0) return;
-    setDownloadingPoster(true);
-    try {
-      const dataUrl = await generateFixturePosterDataUrl(generatedMatches, teams);
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `Sorteo_Oficial_Enfrentamientos_${new Date().toISOString().slice(0, 10)}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error('Error generating sorteo poster', err);
-    } finally {
-      setDownloadingPoster(false);
+  useEffect(() => {
+    if (phase === 'completed' && generatedMatches.length > 0) {
+      try {
+        const url = generateFixturePosterDataUrl(generatedMatches, teams);
+        setPosterUrl(url);
+      } catch (err) {
+        console.error('Error generating sorteo poster in studio:', err);
+      }
     }
+  }, [phase, generatedMatches, teams]);
+
+  const handleDownloadPoster = () => {
+    if (!posterUrl && generatedMatches.length > 0) {
+      const url = generateFixturePosterDataUrl(generatedMatches, teams);
+      setPosterUrl(url);
+    }
+    const targetUrl = posterUrl || (generatedMatches.length > 0 ? generateFixturePosterDataUrl(generatedMatches, teams) : '');
+    if (!targetUrl) return;
+
+    const link = document.createElement('a');
+    link.href = targetUrl;
+    link.download = `Sorteo_Oficial_Enfrentamientos_${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Generate randomized matches based on format
@@ -343,17 +354,52 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
               })}
             </div>
 
-            {/* Completion Actions */}
+            {/* Completion Actions & Visible Poster Preview */}
             {phase === 'completed' && (
-              <div className="pt-3 space-y-2 animate-in fade-in duration-300">
+              <div className="pt-3 space-y-3 animate-in fade-in duration-300">
+                {/* Visual Poster Preview Card */}
+                {posterUrl && (
+                  <div className="p-3.5 bg-slate-950 rounded-2xl border-2 border-amber-500/50 space-y-2 shadow-2xl">
+                    <div className="flex items-center justify-between text-xs font-black text-amber-400">
+                      <span className="flex items-center gap-1.5 uppercase tracking-wider">
+                        <Trophy className="w-4 h-4 text-amber-400" />
+                        <span>Póster Oficial de Enfrentamientos Generado</span>
+                      </span>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                        1080px Alta Resolución
+                      </span>
+                    </div>
+
+                    <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-800 bg-black/60 p-2 flex justify-center">
+                      <img
+                        src={posterUrl}
+                        alt="Póster Oficial de Enfrentamientos"
+                        className="max-h-64 w-auto rounded-lg shadow-2xl object-contain border border-amber-500/20"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-300 text-center">
+                      ⚡ Este es el póster oficial con escudos, nombres y horarios listos para publicarse.
+                    </p>
+                  </div>
+                )}
+
                 <button
                   onClick={handleDownloadPoster}
-                  disabled={downloadingPoster}
                   className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all"
                 >
                   <Download className="w-4 h-4 text-slate-950" />
-                  <span>{downloadingPoster ? 'Generando imagen HD...' : 'DESCARGAR IMAGEN OFICIAL DE ENFRENTAMIENTOS (.PNG)'}</span>
+                  <span>DESCARGAR PÓSTER OFICIAL DE ENFRENTAMIENTOS (.PNG)</span>
                 </button>
+
+                <a
+                  href={generateWhatsAppFixtureBroadcastLink(generatedMatches, teams)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>COMPARTIR ENFRENTAMIENTOS POR WHATSAPP</span>
+                </a>
 
                 <button
                   onClick={() => {

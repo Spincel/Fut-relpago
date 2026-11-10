@@ -1,4 +1,4 @@
-import { Team } from '../types/tournament';
+import { Team, TournamentMatch } from '../types/tournament';
 
 export function formatPhoneForWhatsApp(phone: string): string {
   if (!phone) return '';
@@ -24,9 +24,9 @@ export function generateWhatsAppApprovalLink(team: Team): string {
   const phone = formatPhoneForWhatsApp(team.captain.phone);
   const message = `¡Hola ${team.captain.fullName}! ⚽🏆 Te saluda Axel Javier González Salas, organizador del Torneo Relámpago de Fútbol del Jueves 12 de Noviembre.
 
-Te confirmo que tu equipo *${team.name}* (Folio: *${team.folio}*) quedó REGISTRADO Y VALIDADO OFICIALMENTE con uniforme ${team.uniformColor} y plantilla 2-2-2.
+Te confirmo que tu equipo *${team.name}* (Folio: *${team.folio}*) ha sido REGISTRADO Y APROBADO OFICIALMENTE por el comité organizador con uniforme ${team.uniformColor} y plantilla reglamentaria 2-2-2.
 
-Tu lugar está asegurado. Espera el sorteo oficial para saber contra quién te enfrentarás en tu primer partido. ¡Mucho éxito! 🎉`;
+Tu lugar en el torneo está 100% asegurado. Mantente atento, ya que en breve realizaremos el sorteo oficial para definir los enfrentamientos y horarios. ¡Mucho éxito a tu equipo! 🎉⚽`;
 
   const phoneParam = phone ? `${phone}` : '';
   return `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
@@ -90,4 +90,33 @@ ${team.players.map((p, idx) => `· ${idx + 1}. ${p.fullName} (${p.grade}º Año)
 ¡Ya descargamos nuestra imagen oficial del equipo y quedamos a la espera del sorteo! 🎉`;
 
   return `https://wa.me/${ORGANIZER_PHONE}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Mensaje para difundir el rol oficial de juegos en grupos de WhatsApp o a los capitanes
+ */
+export function generateWhatsAppFixtureBroadcastLink(matches: TournamentMatch[], teams: Team[]): string {
+  const getTeamName = (id: string) => teams.find((t) => t.id === id)?.name || id;
+  const matchLines = matches
+    .filter((m) => m.teamAId && m.teamBId)
+    .map((m) => `⚽ *${m.round}* (Partido #${m.matchNumber}):\n   ${getTeamName(m.teamAId)} vs ${getTeamName(m.teamBId)}\n   ⏰ Horario: *${m.timeSlot}*`)
+    .join('\n\n');
+
+  const message = `⚽🏆 *TORNEO RELÁMPAGO DE FÚTBOL · ROL OFICIAL DE JUEGOS* 🏆⚽
+
+Organizador: Axel Javier González Salas
+Fecha: Jueves 12 de Noviembre
+
+🔥 *ENFRENTAMIENTOS DEFINIDOS TRAS EL SORTEO OFICIAL:*
+
+${matchLines}
+
+⚠️ *Recordatorios importantes:*
+1. Cada equipo debe presentarse 10 minutos antes de su horario con su uniforme completo.
+2. Formato 6 vs 6 en cancha con regla reglamentaria 2-2-2 activa.
+3. Consulta el rol interactivo y el póster oficial en: https://t-fut-oficial.vercel.app/
+
+¡Mucho éxito a todas las escuadras participantes! 🎉⚡`;
+
+  return `https://wa.me/?text=${encodeURIComponent(message)}`;
 }
