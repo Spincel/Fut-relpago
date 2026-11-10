@@ -88,15 +88,15 @@ export function isTeamNameTaken(teamName: string, existingTeams: Team[], current
 }
 
 export function findDuplicatePlayersInOtherTeams(
-  newPlayerNamesOrIds: { name: string; curpOrId: string }[],
+  newPlayerNames: Array<{ name: string; curpOrId?: string } | string>,
   existingTeams: Team[],
   currentTeamId?: string
 ): { isDuplicate: boolean; message?: string } {
-  for (const newP of newPlayerNamesOrIds) {
-    const cleanName = newP.name.trim().toLowerCase();
-    const cleanId = newP.curpOrId.trim().toLowerCase();
+  for (const item of newPlayerNames) {
+    const rawName = typeof item === 'string' ? item : item.name;
+    const cleanName = rawName.trim().toLowerCase();
 
-    if (!cleanName && !cleanId) continue;
+    if (!cleanName || cleanName.length < 4) continue;
 
     for (const team of existingTeams) {
       if (team.id === currentTeamId) continue;
@@ -105,19 +105,11 @@ export function findDuplicatePlayersInOtherTeams(
         if (!existingP.isActive) continue;
 
         const existingName = existingP.fullName.trim().toLowerCase();
-        const existingCurp = (existingP.studentIdOrCurp || '').trim().toLowerCase();
 
-        if (cleanId && existingCurp && cleanId === existingCurp) {
+        if (cleanName === existingName) {
           return {
             isDuplicate: true,
-            message: `La matrícula o CURP "${newP.curpOrId}" ya está registrada en el equipo "${team.name}" con el jugador ${existingP.fullName}. Un alumno no puede jugar en dos equipos.`,
-          };
-        }
-
-        if (cleanName && cleanName.length > 5 && cleanName === existingName) {
-          return {
-            isDuplicate: true,
-            message: `El jugador "${existingP.fullName}" ya fue registrado en el equipo "${team.name}". Un alumno no puede estar en dos equipos.`,
+            message: `El jugador "${existingP.fullName}" ya fue registrado en el equipo "${team.name}". Un alumno no puede jugar en dos equipos.`,
           };
         }
       }
@@ -152,9 +144,8 @@ export function findTeamDuplicatePlayers(
   for (const player of targetTeam.players) {
     if (!player.isActive) continue;
     const cleanName = player.fullName.trim().toLowerCase();
-    const cleanCurp = (player.studentIdOrCurp || '').trim().toLowerCase();
 
-    if (!cleanName && !cleanCurp) continue;
+    if (!cleanName || cleanName.length < 4) continue;
 
     for (const otherTeam of allTeams) {
       if (otherTeam.id === targetTeam.id) continue;
@@ -162,12 +153,8 @@ export function findTeamDuplicatePlayers(
       for (const otherPlayer of otherTeam.players) {
         if (!otherPlayer.isActive) continue;
         const otherName = otherPlayer.fullName.trim().toLowerCase();
-        const otherCurp = (otherPlayer.studentIdOrCurp || '').trim().toLowerCase();
 
-        const isNameMatch = cleanName.length >= 4 && cleanName === otherName;
-        const isCurpMatch = cleanCurp && otherCurp && cleanCurp === otherCurp;
-
-        if (isNameMatch || isCurpMatch) {
+        if (cleanName === otherName) {
           duplicates.push({ player, otherTeam });
         }
       }

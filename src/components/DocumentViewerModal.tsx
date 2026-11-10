@@ -35,7 +35,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     'El grado escolar no coincide con la base oficial.',
     'Credencial escolar vencida o sin ciclo escolar actual.',
     'Falta sello o firma de la institución educativa.',
-    'Nombre o CURP no coincide con el registro.',
+    'El nombre no coincide con el alumno registrado.',
   ];
 
   const handleApprove = () => {
@@ -159,10 +159,6 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   <div className="flex justify-between">
                     <span className="text-slate-400">Grado registrado:</span>
                     <span className="text-amber-400 font-bold">{player.grade}º Año</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Matrícula/CURP:</span>
-                    <span className="text-slate-200 font-mono">{player.studentIdOrCurp || 'Vigente'}</span>
                   </div>
                 </div>
               </div>

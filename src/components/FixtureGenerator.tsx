@@ -137,9 +137,8 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
                     <Clock className="w-3.5 h-3.5 text-amber-400" />
                     <strong>Horario:</strong> {m.timeSlot}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                    <strong>Cancha:</strong> {m.pitch}
+                  <span className="font-mono text-amber-400 font-bold text-[11px]">
+                    Jueves 12 Nov
                   </span>
                 </div>
               </div>
@@ -250,9 +249,8 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
                       <Clock className="w-3 h-3 text-amber-400" />
                       {m.timeSlot}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-amber-400" />
-                      {m.pitch}
+                    <span className="font-mono text-amber-400 font-bold">
+                      Jueves 12 Nov
                     </span>
                   </div>
 

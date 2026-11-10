@@ -123,15 +123,14 @@ export const OfficialGameSheetModal: React.FC<OfficialGameSheetModalProps> = ({
               </h3>
 
               <div className="overflow-x-auto -mx-1 px-1">
-              <table className="w-full min-w-[560px] text-left text-xs border border-slate-300">
+              <table className="w-full min-w-[500px] text-left text-xs border border-slate-300">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-300 text-slate-700">
                     <th className="p-2 border-r border-slate-300 font-bold">#</th>
                     <th className="p-2 border-r border-slate-300 font-bold">Nombre Completo</th>
                     <th className="p-2 border-r border-slate-300 font-bold">Grado</th>
                     <th className="p-2 border-r border-slate-300 font-bold">Posición</th>
-                    <th className="p-2 border-r border-slate-300 font-bold">Matrícula/CURP</th>
-                    <th className="p-2 border-r border-slate-300 font-bold text-center">Doc.</th>
+                    <th className="p-2 border-r border-slate-300 font-bold text-center">Estatus</th>
                     <th className="p-2 font-bold text-center">Firma Jugador</th>
                   </tr>
                 </thead>
@@ -150,14 +149,11 @@ export const OfficialGameSheetModal: React.FC<OfficialGameSheetModalProps> = ({
                       <td className="p-2 border-r border-slate-300 text-slate-600">
                         {player.position || 'Jugador'}
                       </td>
-                      <td className="p-2 border-r border-slate-300 font-mono text-[10px] text-slate-600">
-                        {player.studentIdOrCurp || 'Vigente'}
-                      </td>
                       <td className="p-2 border-r border-slate-300 text-center">
                         {player.document?.status === 'approved' ? (
                           <span className="text-[10px] text-emerald-700 font-bold">✓ VÁLIDO</span>
                         ) : (
-                          <span className="text-[10px] text-amber-700 font-bold">PENDIENTE</span>
+                          <span className="text-[10px] text-amber-700 font-bold">REGISTRADO</span>
                         )}
                       </td>
                       <td className="p-2 h-9 border-slate-300"></td>
@@ -169,11 +165,7 @@ export const OfficialGameSheetModal: React.FC<OfficialGameSheetModalProps> = ({
             </div>
 
             {/* Match Control Fields for Referee */}
-            <div className="mt-6 border border-slate-300 p-3 rounded text-xs grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50">
-              <div>
-                <span className="text-slate-500 block uppercase text-[10px]">Cancha Asignada:</span>
-                <span className="font-bold text-slate-800">Cancha Principal</span>
-              </div>
+            <div className="mt-6 border border-slate-300 p-3 rounded text-xs grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50">
               <div>
                 <span className="text-slate-500 block uppercase text-[10px]">Marcador Final:</span>
                 <span className="font-mono font-bold text-slate-800">_____ - _____</span>

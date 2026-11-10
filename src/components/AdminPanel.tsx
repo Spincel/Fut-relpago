@@ -59,7 +59,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [subGrade, setSubGrade] = useState<GradeYear>(2);
   const [subPosition, setSubPosition] = useState<PlayerPosition>('Medio');
   const [subJersey, setSubJersey] = useState('10');
-  const [subCurp, setSubCurp] = useState('');
   const [subError, setSubError] = useState<string | null>(null);
 
   // Metrics
@@ -118,7 +117,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       grade: subGrade,
       position: subPosition,
       jerseyNumber: subJersey ? parseInt(subJersey, 10) : undefined,
-      studentIdOrCurp: subCurp.trim() || undefined,
       isActive: true,
       document: {
         status: 'approved',
@@ -145,7 +143,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     onUpdateTeams(updated);
     setSubstitutionModal({ isOpen: false, team: null, player: null });
     setSubName('');
-    setSubCurp('');
     setSubError(null);
   };
 
@@ -570,7 +567,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <span className="font-bold text-amber-400">
                             {m.round} {m.groupName ? `· ${m.groupName}` : ''} · Partido #{m.matchNumber}
                           </span>
-                          <span>{m.timeSlot} · {m.pitch}</span>
+                          <span>{m.timeSlot}</span>
                         </div>
 
                         {/* Match & Score Input */}

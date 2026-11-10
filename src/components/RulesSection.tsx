@@ -155,7 +155,7 @@ export const RulesSection: React.FC<RulesSectionProps> = ({
               <span>Fecha del Torneo</span>
             </div>
             <p className="text-[11px] text-slate-300">
-              <strong>Jueves 12 de Noviembre</strong> · En las canchas de la escuela.
+              <strong>Jueves 12 de Noviembre</strong> · En las instalaciones de la escuela.
             </p>
           </div>
         </div>

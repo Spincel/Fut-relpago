@@ -76,7 +76,7 @@ export interface TournamentMatch {
   scoreA?: number;
   scoreB?: number;
   timeSlot: string;
-  pitch: string;
+  pitch?: string;
   status: 'programado' | 'en_curso' | 'finalizado';
   winnerTeamId?: string;
 }

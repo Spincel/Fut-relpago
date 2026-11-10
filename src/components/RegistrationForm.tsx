@@ -128,7 +128,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     // 5. Check if any player is already in another team
     const playersToCheck = players
       .filter((p) => p.fullName.trim().length > 3)
-      .map((p) => ({ name: p.fullName.trim(), curpOrId: '' }));
+      .map((p) => p.fullName.trim());
     const dupCheck = findDuplicatePlayersInOtherTeams(playersToCheck, existingTeams);
     if (dupCheck.isDuplicate && dupCheck.message) {
       errors.push(dupCheck.message);

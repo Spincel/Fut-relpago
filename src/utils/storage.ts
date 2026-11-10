@@ -69,10 +69,9 @@ export function exportTeamsToCSV(teams: Team[]): string {
     'Email',
     'Jugador',
     'Grado Escolar',
-    'Matricula/CURP',
     'Posicion',
     'Dorsal',
-    'Estatus Documento',
+    'Estatus Registro',
     'Jugador Activo'
   ];
 
@@ -91,7 +90,6 @@ export function exportTeamsToCSV(teams: Team[]): string {
           `"${team.captain.email || ''}"`,
           `"${player.fullName}"`,
           `"${player.grade}º Año"`,
-          `"${player.studentIdOrCurp || 'N/A'}"`,
           `"${player.position || 'Jugador'}"`,
           `"${player.jerseyNumber || ''}"`,
           `"${player.document?.status || 'pending'}"`,

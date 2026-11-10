@@ -45,7 +45,6 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
         '11:15 - 11:50 AM',
         '12:00 - 12:35 PM',
       ];
-      const pitches = ['Cancha 1 (Pasto Sintético)', 'Cancha 2', 'Cancha Principal'];
 
       for (let i = 0; i < matchCount; i++) {
         const teamA = shuffled[i * 2];
@@ -58,7 +57,6 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
             teamAId: teamA.id,
             teamBId: teamB.id,
             timeSlot: timeSlots[i % timeSlots.length],
-            pitch: pitches[i % pitches.length],
             status: 'programado',
           });
         }
@@ -73,7 +71,6 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
           teamAId: 'Por Definir',
           teamBId: 'Por Definir',
           timeSlot: '12:30 - 01:15 PM',
-          pitch: 'Cancha Principal (Ceremonia de Premiación)',
           status: 'programado',
         });
       }
@@ -95,7 +92,6 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
             teamAId: groupA[i].id,
             teamBId: groupA[j].id,
             timeSlot: `09:${(mNum * 20).toString().padStart(2, '0')} AM`,
-            pitch: 'Cancha 1',
             status: 'programado',
           });
         }
@@ -111,7 +107,6 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
             teamAId: groupB[i].id,
             teamBId: groupB[j].id,
             timeSlot: `10:${(mNum * 15).toString().padStart(2, '0')} AM`,
-            pitch: 'Cancha 2',
             status: 'programado',
           });
         }
@@ -126,7 +121,6 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
         teamAId: 'Líder Grupo A',
         teamBId: 'Líder Grupo B',
         timeSlot: '12:30 - 01:15 PM',
-        pitch: 'Cancha Principal',
         status: 'programado',
       });
     }
@@ -276,7 +270,7 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
                       <span className="font-bold text-amber-400">
                         {match.round} {match.groupName ? `· ${match.groupName}` : ''} · Partido #{match.matchNumber}
                       </span>
-                      <span>{match.timeSlot} · {match.pitch}</span>
+                      <span>{match.timeSlot}</span>
                     </div>
 
                     {/* Matchup row */}
