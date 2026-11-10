@@ -1,5 +1,5 @@
 // Vercel Serverless Function: Global Cloud Sync for Matches & Fixture
-// Uses Vercel KV (Upstash) if configured, or returns fallback
+// Uses Upstash Redis REST API with robust command format
 
 export default async function handler(req: any, res: any) {
   // CORS Headers
@@ -22,18 +22,36 @@ export default async function handler(req: any, res: any) {
     });
   }
 
+  async function execRedisCommand(commandArray: any[]) {
+    const response = await fetch(kvUrl as string, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${kvToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(commandArray),
+    });
+    return await response.json();
+  }
+
   try {
     if (req.method === 'GET') {
-      const response = await fetch(`${kvUrl}/get/tfut_global_matches`, {
-        headers: { Authorization: `Bearer ${kvToken}` },
-      });
-      const data = await response.json();
+      const data = await execRedisCommand(['GET', 'tfut_global_matches']);
       const raw = data?.result;
-      const matches = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : [];
+      let matches: any[] = [];
+      if (raw) {
+        let parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed); } catch (_e) {}
+        }
+        if (Array.isArray(parsed)) {
+          matches = parsed;
+        }
+      }
       return res.status(200).json({
         success: true,
         configured: true,
-        matches: Array.isArray(matches) ? matches : [],
+        matches,
       });
     }
 
@@ -44,14 +62,7 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: 'matches must be an array' });
       }
 
-      await fetch(`${kvUrl}/set/tfut_global_matches`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${kvToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(JSON.stringify(matches)),
-      });
+      await execRedisCommand(['SET', 'tfut_global_matches', JSON.stringify(matches)]);
 
       return res.status(200).json({
         success: true,

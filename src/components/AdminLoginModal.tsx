@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, ShieldCheck, KeyRound, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { X, Lock, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
@@ -38,12 +38,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     } else {
       setError('Credenciales incorrectas. Verifica tu usuario y contraseña de organizador.');
     }
-  };
-
-  const fillQuickDemoCredentials = () => {
-    setUsername('axel');
-    setPassword('relampago');
-    setError(null);
   };
 
   return (
@@ -96,14 +90,14 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ej. axel"
+              placeholder="Ingresa tu usuario"
               className="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Contraseña / PIN de Seguridad *
+              Contraseña de Administrador *
             </label>
             <div className="relative">
               <input
@@ -111,7 +105,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Contraseña de organizador (relampago)"
+                placeholder="••••••••"
                 className="w-full pl-3.5 pr-10 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400 font-mono"
               />
               <button
@@ -121,27 +115,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
-            </div>
-          </div>
-
-          {/* Organizer Credentials Reminder Box */}
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
-                <KeyRound className="w-3.5 h-3.5" />
-                Datos de Acceso Oficiales:
-              </span>
-              <button
-                type="button"
-                onClick={fillQuickDemoCredentials}
-                className="min-h-[36px] inline-flex items-center px-1 text-[10px] text-amber-300 hover:underline font-bold"
-              >
-                Auto-completar
-              </button>
-            </div>
-            <div className="text-[11px] text-slate-300 space-y-0.5 font-mono">
-              <div>Usuario: <strong className="text-white">axel</strong></div>
-              <div>Contraseña: <strong className="text-amber-400">relampago</strong></div>
             </div>
           </div>
 
@@ -158,7 +131,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               className="min-h-[48px] px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>Entrar como Administrador</span>
+              <span>Entrar al Panel</span>
             </button>
           </div>
         </form>

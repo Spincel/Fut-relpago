@@ -22,7 +22,7 @@ import {
 import { Team, Player, TournamentMatch, GradeYear, PlayerPosition } from '../types/tournament';
 import { evaluateTeamRules, findTeamDuplicatePlayers, canSubstitutePlayer } from '../utils/rulesValidator';
 import { generateWhatsAppApprovalLink, generateWhatsAppDuplicatePlayerLink, generateWhatsAppObservationsLink } from '../utils/whatsappHelper';
-import { exportTeamsToCSV } from '../utils/storage';
+import { exportTeamsToCSV, deleteTeamFromCloud } from '../utils/storage';
 import { generateTeamPosterDataUrl, generateFixturePosterDataUrl } from '../utils/posterGenerator';
 import { SorteoLiveStudio } from './SorteoLiveStudio';
 import { TeamBadge } from './TeamBadge';
@@ -94,8 +94,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Handle Delete Team
   const handleConfirmDelete = () => {
     if (!teamToDelete) return;
-    const updated = teams.filter((t) => t.id !== teamToDelete.id);
+    const deletedId = teamToDelete.id;
+    const updated = teams.filter((t) => t.id !== deletedId);
     onUpdateTeams(updated);
+    deleteTeamFromCloud(deletedId).catch(() => {});
     setTeamToDelete(null);
   };
 

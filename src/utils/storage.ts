@@ -47,13 +47,43 @@ export async function fetchTeamsFromCloud(): Promise<Team[] | null> {
   }
 }
 
-export async function saveTeamsToCloud(teams: Team[]): Promise<boolean> {
+export async function saveTeamsToCloud(teams: Team[], overwrite = false): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   try {
     const res = await fetch('/api/teams', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teams }),
+      body: JSON.stringify({ teams, overwrite }),
+    });
+    const data = await res.json();
+    return !!data.configured;
+  } catch (err) {
+    return false;
+  }
+}
+
+export async function syncSingleTeamToCloud(team: Team): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const res = await fetch('/api/teams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team }),
+    });
+    const data = await res.json();
+    return !!data.configured;
+  } catch (err) {
+    return false;
+  }
+}
+
+export async function deleteTeamFromCloud(teamId: string): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const res = await fetch('/api/teams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', teamId }),
     });
     const data = await res.json();
     return !!data.configured;

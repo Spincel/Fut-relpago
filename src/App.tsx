@@ -17,6 +17,8 @@ import {
   saveFixtureToStorage,
   fetchTeamsFromCloud,
   fetchMatchesFromCloud,
+  syncSingleTeamToCloud,
+  saveTeamsToCloud,
 } from './utils/storage';
 import { generateCaptainToAxelLink } from './utils/whatsappHelper';
 import { generateTeamPosterDataUrl } from './utils/posterGenerator';
@@ -85,8 +87,17 @@ export default function App() {
     const syncWithCloud = async () => {
       try {
         const cloudTeams = await fetchTeamsFromCloud();
-        if (cloudTeams && Array.isArray(cloudTeams) && cloudTeams.length > 0) {
-          setTeams(cloudTeams);
+        if (cloudTeams && Array.isArray(cloudTeams)) {
+          if (cloudTeams.length > 0) {
+            setTeams(cloudTeams);
+          } else {
+            // Si la nube aún está vacía pero este dispositivo ya registró equipos,
+            // sincronizarlos a la nube automáticamente para que los vean los demás dispositivos.
+            const localTeams = loadTeamsFromStorage();
+            if (localTeams && localTeams.length > 0) {
+              await saveTeamsToCloud(localTeams);
+            }
+          }
         }
         const cloudMatches = await fetchMatchesFromCloud();
         if (cloudMatches && Array.isArray(cloudMatches) && cloudMatches.length > 0) {
@@ -151,6 +162,7 @@ export default function App() {
     // 1. Guardar equipo en almacenamiento y estado
     const updated = [teamToSave, ...teams];
     handleUpdateTeams(updated);
+    syncSingleTeamToCloud(teamToSave).catch(() => {});
 
     // 2. Descargar automáticamente la imagen oficial (PNG) de la plantilla
     try {
