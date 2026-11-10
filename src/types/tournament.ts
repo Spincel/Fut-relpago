@@ -35,6 +35,17 @@ export interface CaptainContact {
   groupOrClass?: string;
 }
 
+export type BadgeShape = 'shield' | 'circle' | 'oval' | 'square';
+export type BadgePattern = 'solid' | 'bicolor' | 'striped' | 'tricolor';
+
+export interface TeamBadgeConfig {
+  shape: BadgeShape;
+  pattern: BadgePattern;
+  primaryColor: string;
+  secondaryColor?: string;
+  accentColor?: string;
+}
+
 export type TeamStatus = 'approved' | 'in_review' | 'irregular' | 'disqualified';
 
 export interface Team {
@@ -42,6 +53,7 @@ export interface Team {
   folio: string;
   name: string;
   uniformColor: string;
+  badge?: TeamBadgeConfig;
   captain: CaptainContact;
   players: Player[];
   status: TeamStatus;

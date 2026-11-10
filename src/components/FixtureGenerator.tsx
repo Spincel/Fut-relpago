@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Calendar, Search, Trophy, CheckCircle2, X, Users, MapPin, Clock } from 'lucide-react';
+import { Calendar, Search, Trophy, CheckCircle2, X, Users, MapPin, Clock, Download } from 'lucide-react';
 import { Team, TournamentMatch } from '../types/tournament';
 import { getUniformColors } from '../utils/colorHelper';
+import { TeamBadge } from './TeamBadge';
+import { generateFixturePosterDataUrl } from '../utils/posterGenerator';
 
 interface FixtureGeneratorProps {
   teams: Team[];
@@ -14,8 +16,27 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
   matches,
 }) => {
   const [searchTeam, setSearchTeam] = useState('');
+  const [downloadingPoster, setDownloadingPoster] = useState(false);
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
+
+  const handleDownloadPoster = async () => {
+    if (matches.length === 0) return;
+    setDownloadingPoster(true);
+    try {
+      const dataUrl = await generateFixturePosterDataUrl(matches, teams);
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `Rol_De_Juegos_Torneo_Relampago_${new Date().toISOString().slice(0, 10)}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error generating fixture poster', err);
+    } finally {
+      setDownloadingPoster(false);
+    }
+  };
 
   // Search for the user's specific team match
   const userTeamMatches = searchTeam.trim()
@@ -33,7 +54,7 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
     <div className="max-w-4xl mx-auto px-3.5 sm:px-6 py-4 space-y-4">
       
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-800/80 pb-3">
         <div>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -50,25 +71,37 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
           </div>
         </div>
 
-        {/* Quick Search for user's team */}
+        {/* Action Buttons & Quick Search */}
         {matches.length > 0 && (
-          <div className="relative w-full sm:w-72">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTeam}
-              onChange={(e) => setSearchTeam(e.target.value)}
-              placeholder="Busca tu equipo para ver tu rival..."
-              className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-900 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-            />
-            {searchTeam && (
-              <button
-                onClick={() => setSearchTeam('')}
-                className="absolute right-2 top-2 text-slate-400 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={handleDownloadPoster}
+              disabled={downloadingPoster}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer whitespace-nowrap shrink-0"
+              title="Descargar imagen oficial del rol con todos los enfrentamientos"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{downloadingPoster ? 'Generando...' : 'Descargar Rol (.png)'}</span>
+            </button>
+
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+              <input
+                type="text"
+                value={searchTeam}
+                onChange={(e) => setSearchTeam(e.target.value)}
+                placeholder="Busca tu equipo..."
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-900 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              />
+              {searchTeam && (
+                <button
+                  onClick={() => setSearchTeam('')}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -94,20 +127,30 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
 
             return (
               <div key={m.id} className="space-y-2">
-                <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 flex items-center justify-between gap-3 text-sm font-black">
+                <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 flex items-center justify-between gap-2.5 text-sm font-black">
                   
                   {/* Team A */}
-                  <div className="flex-1 text-right truncate">
-                    <span className="text-white block truncate">{teamA ? teamA.name : m.teamAId}</span>
-                    {teamA && (
-                      <span className="text-[10px] font-normal text-slate-400 flex items-center justify-end gap-1 mt-0.5">
-                        <span className="flex items-center -space-x-1">
-                          {colorsA.map((c, i) => (
-                            <span key={i} className="w-2 h-2 rounded-full border border-slate-900" style={{ backgroundColor: c }} />
-                          ))}
+                  <div className="flex-1 flex items-center justify-end gap-2 text-right min-w-0">
+                    <div className="truncate">
+                      <span className="text-white block truncate">{teamA ? teamA.name : m.teamAId}</span>
+                      {teamA && (
+                        <span className="text-[10px] font-normal text-slate-400 flex items-center justify-end gap-1 mt-0.5">
+                          <span className="flex items-center -space-x-1">
+                            {colorsA.map((c, i) => (
+                              <span key={i} className="w-2 h-2 rounded-full border border-slate-900" style={{ backgroundColor: c }} />
+                            ))}
+                          </span>
+                          <span className="truncate">{teamA.uniformColor}</span>
                         </span>
-                        <span>{teamA.uniformColor}</span>
-                      </span>
+                      )}
+                    </div>
+                    {teamA && (
+                      <TeamBadge
+                        badge={teamA.badge}
+                        fallbackColor={teamA.uniformColor}
+                        teamName={teamA.name}
+                        size="sm"
+                      />
                     )}
                   </div>
 
@@ -117,18 +160,28 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
                   </div>
 
                   {/* Team B */}
-                  <div className="flex-1 text-left truncate">
-                    <span className="text-white block truncate">{teamB ? teamB.name : m.teamBId}</span>
+                  <div className="flex-1 flex items-center justify-start gap-2 text-left min-w-0">
                     {teamB && (
-                      <span className="text-[10px] font-normal text-slate-400 flex items-center justify-start gap-1 mt-0.5">
-                        <span className="flex items-center -space-x-1">
-                          {colorsB.map((c, i) => (
-                            <span key={i} className="w-2 h-2 rounded-full border border-slate-900" style={{ backgroundColor: c }} />
-                          ))}
-                        </span>
-                        <span>{teamB.uniformColor}</span>
-                      </span>
+                      <TeamBadge
+                        badge={teamB.badge}
+                        fallbackColor={teamB.uniformColor}
+                        teamName={teamB.name}
+                        size="sm"
+                      />
                     )}
+                    <div className="truncate">
+                      <span className="text-white block truncate">{teamB ? teamB.name : m.teamBId}</span>
+                      {teamB && (
+                        <span className="text-[10px] font-normal text-slate-400 flex items-center justify-start gap-1 mt-0.5">
+                          <span className="flex items-center -space-x-1">
+                            {colorsB.map((c, i) => (
+                              <span key={i} className="w-2 h-2 rounded-full border border-slate-900" style={{ backgroundColor: c }} />
+                            ))}
+                          </span>
+                          <span className="truncate">{teamB.uniformColor}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -208,17 +261,27 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
                   {/* Matchup row */}
                   <div className="flex items-center justify-between gap-2 text-xs sm:text-sm font-black">
                     {/* Team A */}
-                    <div className="flex-1 text-right truncate">
-                      <span className="text-white block truncate">{teamA ? teamA.name : m.teamAId}</span>
-                      {teamA && (
-                        <div className="flex items-center justify-end gap-1 mt-0.5 text-[10px] font-normal text-slate-400">
-                          <div className="flex items-center -space-x-1 shrink-0">
-                            {colorsA.map((c, i) => (
-                              <span key={i} className="w-2 h-2 rounded-full border border-slate-900" style={{ backgroundColor: c }} />
-                            ))}
+                    <div className="flex-1 flex items-center justify-end gap-1.5 text-right min-w-0">
+                      <div className="truncate">
+                        <span className="text-white block truncate">{teamA ? teamA.name : m.teamAId}</span>
+                        {teamA && (
+                          <div className="flex items-center justify-end gap-1 mt-0.5 text-[10px] font-normal text-slate-400">
+                            <div className="flex items-center -space-x-1 shrink-0">
+                              {colorsA.map((c, i) => (
+                                <span key={i} className="w-2 h-2 rounded-full border border-slate-900" style={{ backgroundColor: c }} />
+                              ))}
+                            </div>
+                            <span className="truncate">{teamA.uniformColor}</span>
                           </div>
-                          <span className="truncate">{teamA.uniformColor}</span>
-                        </div>
+                        )}
+                      </div>
+                      {teamA && (
+                        <TeamBadge
+                          badge={teamA.badge}
+                          fallbackColor={teamA.uniformColor}
+                          teamName={teamA.name}
+                          size="sm"
+                        />
                       )}
                     </div>
 
@@ -228,18 +291,28 @@ export const FixtureGenerator: React.FC<FixtureGeneratorProps> = ({
                     </div>
 
                     {/* Team B */}
-                    <div className="flex-1 text-left truncate">
-                      <span className="text-white block truncate">{teamB ? teamB.name : m.teamBId}</span>
+                    <div className="flex-1 flex items-center justify-start gap-1.5 text-left min-w-0">
                       {teamB && (
-                        <div className="flex items-center justify-start gap-1 mt-0.5 text-[10px] font-normal text-slate-400">
-                          <div className="flex items-center -space-x-1 shrink-0">
-                            {colorsB.map((c, i) => (
-                              <span key={i} className="w-2 h-2 rounded-full border border-slate-900" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                          <span className="truncate">{teamB.uniformColor}</span>
-                        </div>
+                        <TeamBadge
+                          badge={teamB.badge}
+                          fallbackColor={teamB.uniformColor}
+                          teamName={teamB.name}
+                          size="sm"
+                        />
                       )}
+                      <div className="truncate">
+                        <span className="text-white block truncate">{teamB ? teamB.name : m.teamBId}</span>
+                        {teamB && (
+                          <div className="flex items-center justify-start gap-1 mt-0.5 text-[10px] font-normal text-slate-400">
+                            <div className="flex items-center -space-x-1 shrink-0">
+                              {colorsB.map((c, i) => (
+                                <span key={i} className="w-2 h-2 rounded-full border border-slate-900" style={{ backgroundColor: c }} />
+                              ))}
+                            </div>
+                            <span className="truncate">{teamB.uniformColor}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

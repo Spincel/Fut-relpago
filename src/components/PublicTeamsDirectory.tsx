@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Trophy, X, Users } from 'lucide-react';
 import { Team } from '../types/tournament';
 import { getUniformColors } from '../utils/colorHelper';
+import { TeamBadge } from './TeamBadge';
 
 interface PublicTeamsDirectoryProps {
   teams: Team[];
@@ -135,16 +136,23 @@ export const PublicTeamsDirectory: React.FC<PublicTeamsDirectoryProps> = ({
                 key={team.id}
                 className="p-3 sm:p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all space-y-2 shadow-md"
               >
-                {/* Cabecera de la tarjeta: Nombre del equipo, Folio y Color de Uniforme */}
+                {/* Cabecera de la tarjeta: Escudo, Nombre del equipo, Folio y Color de Uniforme */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20 shrink-0">
-                        {team.folio}
-                      </span>
-                      <h2 className="font-display font-black text-sm text-white leading-tight">
-                        {team.name}
-                      </h2>
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <TeamBadge
+                      badge={team.badge}
+                      teamName={team.name}
+                      size={32}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20 shrink-0">
+                          {team.folio}
+                        </span>
+                        <h2 className="font-display font-black text-sm text-white leading-tight">
+                          {team.name}
+                        </h2>
+                      </div>
                     </div>
                   </div>
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Play, CheckCircle2, X, Sparkles, Shuffle, ShieldCheck } from 'lucide-react';
+import { Trophy, Play, CheckCircle2, X, Sparkles, Shuffle, ShieldCheck, Download } from 'lucide-react';
 import { Team, TournamentMatch } from '../types/tournament';
+import { TeamBadge } from './TeamBadge';
+import { generateFixturePosterDataUrl } from '../utils/posterGenerator';
 
 interface SorteoLiveStudioProps {
   isOpen: boolean;
@@ -22,6 +24,25 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
   const [tickerName, setTickerName] = useState('');
   const [generatedMatches, setGeneratedMatches] = useState<TournamentMatch[]>([]);
   const [revealedCount, setRevealedCount] = useState(0);
+  const [downloadingPoster, setDownloadingPoster] = useState(false);
+
+  const handleDownloadPoster = async () => {
+    if (generatedMatches.length === 0) return;
+    setDownloadingPoster(true);
+    try {
+      const dataUrl = await generateFixturePosterDataUrl(generatedMatches, teams);
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `Sorteo_Oficial_Enfrentamientos_${new Date().toISOString().slice(0, 10)}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error generating sorteo poster', err);
+    } finally {
+      setDownloadingPoster(false);
+    }
+  };
 
   // Generate randomized matches based on format
   const generateDraw = () => {
@@ -274,13 +295,23 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
                     </div>
 
                     {/* Matchup row */}
-                    <div className="flex items-center justify-between gap-3 text-sm sm:text-base font-black">
-                      <div className="flex-1 text-right truncate">
-                        <span className="text-white block truncate">{teamA ? teamA.name : match.teamAId}</span>
+                    <div className="flex items-center justify-between gap-2.5 text-sm sm:text-base font-black">
+                      <div className="flex-1 flex items-center justify-end gap-2 text-right min-w-0">
+                        <div className="truncate">
+                          <span className="text-white block truncate">{teamA ? teamA.name : match.teamAId}</span>
+                          {teamA && (
+                            <span className="text-[10px] text-slate-400 font-normal block truncate">
+                              {teamA.uniformColor}
+                            </span>
+                          )}
+                        </div>
                         {teamA && (
-                          <span className="text-[10px] text-slate-400 font-normal block truncate">
-                            Uniforme: {teamA.uniformColor}
-                          </span>
+                          <TeamBadge
+                            badge={teamA.badge}
+                            fallbackColor={teamA.uniformColor}
+                            teamName={teamA.name}
+                            size="sm"
+                          />
                         )}
                       </div>
 
@@ -288,13 +319,23 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
                         VS
                       </div>
 
-                      <div className="flex-1 text-left truncate">
-                        <span className="text-white block truncate">{teamB ? teamB.name : match.teamBId}</span>
+                      <div className="flex-1 flex items-center justify-start gap-2 text-left min-w-0">
                         {teamB && (
-                          <span className="text-[10px] text-slate-400 font-normal block truncate">
-                            Uniforme: {teamB.uniformColor}
-                          </span>
+                          <TeamBadge
+                            badge={teamB.badge}
+                            fallbackColor={teamB.uniformColor}
+                            teamName={teamB.name}
+                            size="sm"
+                          />
                         )}
+                        <div className="truncate">
+                          <span className="text-white block truncate">{teamB ? teamB.name : match.teamBId}</span>
+                          {teamB && (
+                            <span className="text-[10px] text-slate-400 font-normal block truncate">
+                              {teamB.uniformColor}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -306,13 +347,22 @@ export const SorteoLiveStudio: React.FC<SorteoLiveStudioProps> = ({
             {phase === 'completed' && (
               <div className="pt-3 space-y-2 animate-in fade-in duration-300">
                 <button
+                  onClick={handleDownloadPoster}
+                  disabled={downloadingPoster}
+                  className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all"
+                >
+                  <Download className="w-4 h-4 text-slate-950" />
+                  <span>{downloadingPoster ? 'Generando imagen HD...' : 'DESCARGAR IMAGEN OFICIAL DE ENFRENTAMIENTOS (.PNG)'}</span>
+                </button>
+
+                <button
                   onClick={() => {
                     onPublishFixture(generatedMatches);
                     onClose();
                   }}
-                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm sm:text-base rounded-2xl shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                 >
-                  <CheckCircle2 className="w-5 h-5 text-slate-950" />
+                  <CheckCircle2 className="w-4 h-4 text-slate-950" />
                   <span>PUBLICAR ROL OFICIAL DE JUEGOS PARA TODOS</span>
                 </button>
 

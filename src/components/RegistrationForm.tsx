@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ShieldCheck, AlertCircle, CheckCircle2, Trophy, Check, AlertTriangle, ArrowRight } from 'lucide-react';
-import { Team, Player, GradeYear } from '../types/tournament';
+import { ShieldCheck, AlertCircle, CheckCircle2, Trophy, Check, AlertTriangle, ArrowRight, Sparkles } from 'lucide-react';
+import { Team, Player, GradeYear, BadgeShape, BadgePattern, TeamBadgeConfig } from '../types/tournament';
 import { isTeamNameTaken, findDuplicatePlayersInOtherTeams } from '../utils/rulesValidator';
+import { TeamBadge } from './TeamBadge';
 
 interface RegistrationFormProps {
   existingTeams: Team[];
@@ -15,10 +16,30 @@ interface SimplePlayer {
   grade: GradeYear;
 }
 
+export interface UniformColorOption {
+  name: string;
+  bg: string;
+  hex: string;
+}
+
+export const BADGE_SHAPES: Array<{ id: BadgeShape; label: string; icon: string }> = [
+  { id: 'shield', label: 'Escudo', icon: '🛡️' },
+  { id: 'circle', label: 'Círculo', icon: '⚪' },
+  { id: 'oval', label: 'Óvalo', icon: '⬭' },
+  { id: 'square', label: 'Diamante', icon: '◆' },
+];
+
+export const BADGE_PATTERNS: Array<{ id: BadgePattern; label: string; desc: string }> = [
+  { id: 'solid', label: 'Sólido', desc: '1 Solo Color' },
+  { id: 'bicolor', label: 'Bicolor', desc: 'Dividido Mitad y Mitad' },
+  { id: 'striped', label: 'Con Franja', desc: 'Franja Diagonal' },
+  { id: 'tricolor', label: 'Tricolor', desc: '3 Franjas Verticales' },
+];
+
 // Preset color options for quick 1-tap selection
-export const PRESET_COLORS = [
+export const PRESET_COLORS: UniformColorOption[] = [
   { name: 'Rojo', bg: 'bg-red-500', hex: '#ef4444' },
-  { name: 'Azul', bg: 'bg-blue-500', hex: '#3b82f6' },
+  { name: 'Azul', bg: 'bg-blue-600', hex: '#2563eb' },
   { name: 'Verde', bg: 'bg-emerald-500', hex: '#10b981' },
   { name: 'Amarillo', bg: 'bg-yellow-400', hex: '#facc15' },
   { name: 'Negro', bg: 'bg-slate-900', hex: '#0f172a' },
@@ -27,6 +48,8 @@ export const PRESET_COLORS = [
   { name: 'Morado', bg: 'bg-purple-500', hex: '#a855f7' },
   { name: 'Celeste', bg: 'bg-cyan-400', hex: '#22d3ee' },
   { name: 'Rosa', bg: 'bg-pink-500', hex: '#ec4899' },
+  { name: 'Azul Marino', bg: 'bg-blue-950', hex: '#1e3a8a' },
+  { name: 'Vino', bg: 'bg-rose-950', hex: '#881337' },
 ];
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
@@ -36,8 +59,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   registeredBy = 'public_portal',
 }) => {
   const [teamName, setTeamName] = useState('');
-  const [selectedColor, setSelectedColor] = useState('Rojo');
+
+  // Configuración de Pseudo-Escudo y Estilos de Uniforme
+  const [badgeShape, setBadgeShape] = useState<BadgeShape>('shield');
+  const [badgePattern, setBadgePattern] = useState<BadgePattern>('solid');
+  const [primaryColor, setPrimaryColor] = useState<UniformColorOption>(PRESET_COLORS[0]); // Rojo
+  const [secondaryColor, setSecondaryColor] = useState<UniformColorOption>(PRESET_COLORS[5]); // Blanco
+  const [accentColor, setAccentColor] = useState<UniformColorOption>(PRESET_COLORS[4]); // Negro
   const [customColor, setCustomColor] = useState('');
+
   const [captainName, setCaptainName] = useState('');
   const [captainPhone, setCaptainPhone] = useState('');
   const [captainGrade, setCaptainGrade] = useState<GradeYear>(3);
@@ -188,7 +218,26 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     const now = new Date().toISOString();
     const folioNum = Math.floor(10 + Math.random() * 89);
     const folio = `TRF-12NOV-${folioNum}`;
-    const finalColor = customColor.trim() ? `${selectedColor} (${customColor.trim()})` : selectedColor;
+
+    let uniformDesc = primaryColor.name;
+    if (badgePattern === 'bicolor') {
+      uniformDesc = `${primaryColor.name} y ${secondaryColor.name} (Bicolor)`;
+    } else if (badgePattern === 'striped') {
+      uniformDesc = `${primaryColor.name} con Franja ${secondaryColor.name}`;
+    } else if (badgePattern === 'tricolor') {
+      uniformDesc = `${primaryColor.name}, ${secondaryColor.name} y ${accentColor.name} (Tricolor)`;
+    }
+    if (customColor.trim()) {
+      uniformDesc += ` - ${customColor.trim()}`;
+    }
+
+    const badgeConfig: TeamBadgeConfig = {
+      shape: badgeShape,
+      pattern: badgePattern,
+      primaryColor: primaryColor.hex,
+      secondaryColor: secondaryColor.hex,
+      accentColor: accentColor.hex,
+    };
 
     const formattedPlayers: Player[] = players.map((p, idx) => ({
       id: `p-${Date.now()}-${idx}`,
@@ -207,7 +256,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       id: `team-${Date.now()}`,
       folio,
       name: teamName.trim(),
-      uniformColor: finalColor,
+      uniformColor: uniformDesc,
+      badge: badgeConfig,
       captain: {
         fullName: captainName.trim(),
         phone: captainPhone.trim(),
@@ -327,42 +377,212 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             )}
           </div>
 
-          {/* Preset Color Selection Casilla */}
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">
-              Color de Camiseta / Uniforme * (Toca para elegir):
-            </label>
-            <div className="grid grid-cols-5 gap-2">
-              {PRESET_COLORS.map((c) => {
-                const isSelected = selectedColor === c.name;
-                return (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => setSelectedColor(c.name)}
-                    className={`min-h-[48px] py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all border cursor-pointer ${
-                      isSelected
-                        ? 'border-amber-400 bg-slate-800 text-white scale-105 shadow-md shadow-amber-500/10 ring-2 ring-amber-400'
-                        : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white hover:border-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`w-4 h-4 rounded-full border border-slate-700 shadow-sm ${c.bg}`}
-                    />
-                    <span className="text-[10px] truncate">{c.name}</span>
-                  </button>
-                );
-              })}
+          {/* =========================================================
+              DISEÑO PROFESIONAL DE ESCUDO Y ESTILO DE UNIFORME
+              ========================================================= */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950 border border-amber-500/30 space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-base">🛡️</span>
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Insignia Oficial y Estilo de Uniforme *
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                Personalizable
+              </span>
             </div>
-            
-            {/* Optional extra detail */}
-            <input
-              type="text"
-              value={customColor}
-              onChange={(e) => setCustomColor(e.target.value)}
-              placeholder="Detalle extra opcional (ej. con franjas blancas)"
-              className="mt-2 w-full px-3 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-300 focus:outline-none focus:border-amber-400"
-            />
+
+            {/* Vista Previa en Vivo del Escudo */}
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/20 border border-slate-800 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <TeamBadge
+                  badge={currentBadge}
+                  teamName={teamName || 'Equipo'}
+                  size={70}
+                  className="shrink-0"
+                />
+                <div className="min-w-0">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                    Insignia del Equipo:
+                  </span>
+                  <h4 className="font-display font-black text-sm text-white truncate leading-tight">
+                    {teamName.trim() || 'Nombre de tu Equipo'}
+                  </h4>
+                  <span className="text-xs font-bold text-amber-400 block mt-0.5 truncate">
+                    👕 {getGeneratedUniformDescription()}
+                  </span>
+                </div>
+              </div>
+              <div className="hidden sm:block text-right shrink-0">
+                <span className="text-[10px] text-slate-400 block">Aparecerá en tu póster</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">✓ Listo</span>
+              </div>
+            </div>
+
+            {/* Paso 1: Forma del Escudo / Insignia */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                1. Elige la Forma del Escudo:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {BADGE_SHAPES.map((sh) => {
+                  const isSelected = badgeShape === sh.id;
+                  return (
+                    <button
+                      key={sh.id}
+                      type="button"
+                      onClick={() => setBadgeShape(sh.id)}
+                      className={`p-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer active:scale-95 ${
+                        isSelected
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/40 font-black'
+                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="text-sm">{sh.icon}</span>
+                      <span className="text-[11px] truncate">{sh.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Paso 2: Estilo de Uniforme / Patrón */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                2. Elige el Estilo de Camiseta:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {BADGE_PATTERNS.map((pt) => {
+                  const isSelected = badgePattern === pt.id;
+                  return (
+                    <button
+                      key={pt.id}
+                      type="button"
+                      onClick={() => setBadgePattern(pt.id)}
+                      className={`p-2 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-0.5 transition-all border cursor-pointer active:scale-95 ${
+                        isSelected
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/40 font-black'
+                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="text-xs font-black">{pt.label}</span>
+                      <span className={`text-[9px] ${isSelected ? 'text-slate-900/80 font-bold' : 'text-slate-400'}`}>
+                        {pt.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Paso 3: Selección de Colores según el estilo elegido */}
+            <div className="space-y-3 pt-1">
+              
+              {/* Color Principal */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: primaryColor.hex }} />
+                  <span>Color Principal / Base: <strong className="text-amber-400">{primaryColor.name}</strong></span>
+                </label>
+                <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+                  {PRESET_COLORS.map((c) => {
+                    const isSelected = primaryColor.name === c.name;
+                    return (
+                      <button
+                        key={c.name}
+                        type="button"
+                        onClick={() => setPrimaryColor(c)}
+                        title={c.name}
+                        className={`h-9 rounded-xl flex items-center justify-center transition-all border cursor-pointer active:scale-90 ${
+                          isSelected
+                            ? 'border-amber-400 scale-110 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+                            : 'border-slate-800 hover:border-slate-600'
+                        } ${c.bg}`}
+                      >
+                        {isSelected && <span className="text-white text-xs drop-shadow">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Color Secundario (Si es Bicolor, Con Franja o Tricolor) */}
+              {badgePattern !== 'solid' && (
+                <div className="animate-in fade-in duration-150">
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: secondaryColor.hex }} />
+                    <span>
+                      {badgePattern === 'striped' ? 'Color de la Franja:' : 'Segundo Color:'}{' '}
+                      <strong className="text-amber-400">{secondaryColor.name}</strong>
+                    </span>
+                  </label>
+                  <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+                    {PRESET_COLORS.map((c) => {
+                      const isSelected = secondaryColor.name === c.name;
+                      return (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => setSecondaryColor(c)}
+                          title={c.name}
+                          className={`h-9 rounded-xl flex items-center justify-center transition-all border cursor-pointer active:scale-90 ${
+                            isSelected
+                              ? 'border-amber-400 scale-110 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+                              : 'border-slate-800 hover:border-slate-600'
+                          } ${c.bg}`}
+                        >
+                          {isSelected && <span className="text-white text-xs drop-shadow">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Color de Acento (Solo si es Tricolor) */}
+              {badgePattern === 'tricolor' && (
+                <div className="animate-in fade-in duration-150">
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accentColor.hex }} />
+                    <span>Tercer Color (Acento): <strong className="text-amber-400">{accentColor.name}</strong></span>
+                  </label>
+                  <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+                    {PRESET_COLORS.map((c) => {
+                      const isSelected = accentColor.name === c.name;
+                      return (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => setAccentColor(c)}
+                          title={c.name}
+                          className={`h-9 rounded-xl flex items-center justify-center transition-all border cursor-pointer active:scale-90 ${
+                            isSelected
+                              ? 'border-amber-400 scale-110 shadow-md shadow-amber-500/20 ring-2 ring-amber-400'
+                              : 'border-slate-800 hover:border-slate-600'
+                          } ${c.bg}`}
+                        >
+                          {isSelected && <span className="text-white text-xs drop-shadow">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Detalle extra opcional */}
+              <div>
+                <input
+                  type="text"
+                  value={customColor}
+                  onChange={(e) => setCustomColor(e.target.value)}
+                  placeholder="Detalle extra opcional (ej. números dorados, cuello polo, medias negras)"
+                  className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+            </div>
+
           </div>
 
           {/* Captain, Grade and WhatsApp */}
