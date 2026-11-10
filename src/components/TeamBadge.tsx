@@ -4,8 +4,9 @@ import { TeamBadgeConfig } from '../types/tournament';
 interface TeamBadgeProps {
   badge?: TeamBadgeConfig;
   teamName?: string;
-  size?: number;
+  size?: number | 'sm' | 'md' | 'lg';
   className?: string;
+  fallbackColor?: string;
 }
 
 export const DEFAULT_BADGE: TeamBadgeConfig = {
@@ -21,14 +22,25 @@ export const TeamBadge: React.FC<TeamBadgeProps> = ({
   teamName = 'Equipo',
   size = 48,
   className = '',
+  fallbackColor,
 }) => {
+  const numericSize =
+    typeof size === 'number'
+      ? size
+      : size === 'sm'
+      ? 28
+      : size === 'lg'
+      ? 64
+      : 40;
+
+  const effectiveBadge = badge || DEFAULT_BADGE;
   const {
     shape = 'shield',
     pattern = 'solid',
     primaryColor = '#ef4444',
     secondaryColor = '#ffffff',
     accentColor = '#000000',
-  } = badge;
+  } = effectiveBadge;
 
   const clipId = React.useId();
   const initial = (teamName.trim().charAt(0) || 'E').toUpperCase();
@@ -46,13 +58,13 @@ export const TeamBadge: React.FC<TeamBadgeProps> = ({
   return (
     <div
       className={`relative shrink-0 flex items-center justify-center select-none ${className}`}
-      style={{ width: size, height: size }}
+      style={{ width: numericSize, height: numericSize }}
       title={`Escudo de ${teamName}`}
     >
       <svg
         viewBox="0 0 100 100"
-        width={size}
-        height={size}
+        width={numericSize}
+        height={numericSize}
         className="overflow-visible filter drop-shadow-md"
       >
         <defs>

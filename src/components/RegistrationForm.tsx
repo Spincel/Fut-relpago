@@ -88,6 +88,30 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   // Check if team name is already taken
   const teamNameIsDuplicate = isTeamNameTaken(teamName, existingTeams);
 
+  // Configuración reactiva del escudo para vista previa y envío
+  const currentBadge: TeamBadgeConfig = {
+    shape: badgeShape,
+    pattern: badgePattern,
+    primaryColor: primaryColor.hex,
+    secondaryColor: secondaryColor.hex,
+    accentColor: accentColor.hex,
+  };
+
+  const getGeneratedUniformDescription = () => {
+    let desc = primaryColor.name;
+    if (badgePattern === 'bicolor') {
+      desc = `${primaryColor.name} y ${secondaryColor.name} (Bicolor)`;
+    } else if (badgePattern === 'striped') {
+      desc = `${primaryColor.name} con Franja ${secondaryColor.name}`;
+    } else if (badgePattern === 'tricolor') {
+      desc = `${primaryColor.name}, ${secondaryColor.name} y ${accentColor.name} (Tricolor)`;
+    }
+    if (customColor.trim()) {
+      desc += ` - ${customColor.trim()}`;
+    }
+    return desc;
+  };
+
   // Calcula el índice del jugador que corresponde al capitán según su grado
   const getCaptainPlayerIndex = (grade: GradeYear) => {
     return grade === 3 ? 0 : grade === 2 ? 2 : 4;
@@ -219,25 +243,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     const folioNum = Math.floor(10 + Math.random() * 89);
     const folio = `TRF-12NOV-${folioNum}`;
 
-    let uniformDesc = primaryColor.name;
-    if (badgePattern === 'bicolor') {
-      uniformDesc = `${primaryColor.name} y ${secondaryColor.name} (Bicolor)`;
-    } else if (badgePattern === 'striped') {
-      uniformDesc = `${primaryColor.name} con Franja ${secondaryColor.name}`;
-    } else if (badgePattern === 'tricolor') {
-      uniformDesc = `${primaryColor.name}, ${secondaryColor.name} y ${accentColor.name} (Tricolor)`;
-    }
-    if (customColor.trim()) {
-      uniformDesc += ` - ${customColor.trim()}`;
-    }
-
-    const badgeConfig: TeamBadgeConfig = {
-      shape: badgeShape,
-      pattern: badgePattern,
-      primaryColor: primaryColor.hex,
-      secondaryColor: secondaryColor.hex,
-      accentColor: accentColor.hex,
-    };
+    const uniformDesc = getGeneratedUniformDescription();
+    const badgeConfig: TeamBadgeConfig = currentBadge;
 
     const formattedPlayers: Player[] = players.map((p, idx) => ({
       id: `p-${Date.now()}-${idx}`,
