@@ -30,7 +30,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
     // Accepted organizer credentials
     const validUsers = ['axel', 'axel.gonzalez', 'organizador', 'admin'];
-    const validPasswords = ['1211', 'axel2026', 'torneo12'];
+    const validPasswords = ['relampago', 'Relampago', 'RELAMPAGO', '1211'];
 
     if (validUsers.includes(cleanUser) && validPasswords.includes(cleanPass)) {
       onLoginSuccess();
@@ -42,7 +42,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   const fillQuickDemoCredentials = () => {
     setUsername('axel');
-    setPassword('1211');
+    setPassword('relampago');
     setError(null);
   };
 
@@ -111,7 +111,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="PIN de acceso (ej. 1211)"
+                placeholder="Contraseña de organizador (relampago)"
                 className="w-full pl-3.5 pr-10 py-2.5 text-xs bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-amber-400 font-mono"
               />
               <button
@@ -141,7 +141,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
             </div>
             <div className="text-[11px] text-slate-300 space-y-0.5 font-mono">
               <div>Usuario: <strong className="text-white">axel</strong></div>
-              <div>Contraseña / PIN: <strong className="text-white">1211</strong> (12 de Noviembre)</div>
+              <div>Contraseña: <strong className="text-amber-400">relampago</strong></div>
             </div>
           </div>
 
